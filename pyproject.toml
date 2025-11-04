@@ -23,9 +23,12 @@ classifiers = [
 ]
 dependencies = [
     "pillow>=11.0.0",
+    "playwright>=1.40.0",
+    "fire>=0.6.0",
 ]
 
 [project.scripts]
+vexy-stax = "vexy_stax.cli:main"
 vexy-stax-validate = "vexy_stax.validate_output:main"
 vexy-stax-create-test = "vexy_stax.create_test_images:main"
 
