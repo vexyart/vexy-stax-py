@@ -1,422 +1,192 @@
 # Vexy Stax PY - Implementation Plan
 
-**Purpose**: Playwright-based browser automation and CLI for vexy-stax-js web application
-
----
+**One-sentence scope**: Python CLI tool for automating Vexy Stax 3D image visualization via Playwright browser automation and test image generation.
 
 ## Core Objectives
 
-1. **Browser Automation**: Control vexy-stax-js through Playwright
-2. **CLI Interface**: Fire-based command-line interface for scripting
-3. **Video Export**: Capture animations and export as video files
-4. **Test Image Generation**: Create test assets for development
+1. **Browser Automation**: Control vexy-stax-js web app via Playwright
+2. **Fire CLI**: Simple command-line interface for automation  
+3. **Test Data Generation**: Create test images for development
+4. **Integration**: Seamless workflow with vexy-stax-js
 
----
-
-## Architecture Overview
+## Architecture
 
 ```
-vexy-stax-py/
-├── src/vexy_stax/
-│   ├── __init__.py           # Package init
-│   ├── _version.py           # Auto-generated version
-│   ├── cli.py                # Fire CLI entry point
-│   ├── browser.py            # Playwright browser automation
-│   ├── capture.py            # Video/screenshot capture
-│   └── test_images.py        # Test image generation
-├── examples/
-│   ├── basic_usage.py        # Simple automation example
-│   ├── video_export.py       # Animation + export
-│   └── batch_processing.py   # Multiple configs
-└── scripts/
-    └── install_playwright.sh # Setup helper
+Fire CLI (cli.py)
+    ↓
+VexyStaxBrowser (browser.py)  
+    ↓
+Playwright → Chromium
+    ↓
+http://localhost:5173/vexy-stax-js/
+    ↓
+Three.js + GSAP Animation
 ```
 
----
+## Implementation Status
 
-## Phase 1: Core Browser Automation
+### ✅ Phase 1: Core Automation (COMPLETE)
 
-### 1.1 Playwright Integration
+**Browser Automation (`browser.py`)**:
+- `VexyStaxBrowser` class wraps Playwright sync API
+- `launch()` - Start Chromium, navigate to dev server
+- `close()` - Clean shutdown
+- `load_images()` - Upload PNGs via file input
+- `load_config()` - Load JSON with embedded images
+- `play_animation()` - Trigger GSAP hero shot
+- `export_png()` - Download PNG export
+- `get_stats()` - Query app statistics
 
-**Goal**: Launch and control vexy-stax-js in headless/headed browser
+**CLI Interface (`cli.py`)**:
+- Fire-based automatic CLI generation
+- Commands: `launch`, `animate`
+- Natural syntax: `vexy-stax launch --images=test-img/`
 
-**Implementation**:
-```python
-# src/vexy_stax/browser.py
-class VexyStaxBrowser:
-    def __init__(self, headless=False, url=None):
-        """Initialize Playwright browser with vexy-stax-js"""
+**Test Data (`create_test_images.py`)**:
+- Generates 3 test PNGs (400×300px, distinct colors)
+- Creates test-img/ directory
+- Also generates layer123.json with embedded images
 
-    async def launch(self):
-        """Start browser and navigate to app"""
+**Development Workflow (`run.sh`)**:
+- Sets PYTHONPATH for running without install
+- Usage: `./run.sh python -m vexy_stax.cli launch`
 
-    async def load_images(self, image_paths: list[str]):
-        """Upload images to the app"""
+### ✅ Phase 2: Quality Improvements (COMPLETE)
 
-    async def set_z_spacing(self, spacing: int):
-        """Adjust Z-spacing via Tweakpane"""
+**Removed Validation Code**:
+- Deleted validate_output.py per 101.md requirement
+- Removed validation CLI entry point
+- Updated package metadata
 
-    async def set_camera_mode(self, mode: str):
-        """Switch camera mode (perspective/ortho/isometric)"""
+**Fixed API Integration**:
+- Changed browser.py to use window.vexyStax.loadConfig()
+- Coordinated with JS repo to add loadConfig API method
 
-    async def apply_material(self, preset: str):
-        """Apply material preset"""
+**Error Handling**:
+- Added helpful error when dev server not running
+- 5s timeout on page load
+- Clear instructions to user
 
-    async def export_png(self, scale: int = 1):
-        """Trigger PNG export"""
+### 📝 Phase 3: Documentation (CURRENT)
 
-    async def close(self):
-        """Clean up browser"""
-```
+**Files**:
+- ✅ PLAN.md - This file (comprehensive plan)
+- 🔄 TODO.md - Flat checklist (next)
+- ⏳ README.md - Update to reflect automation focus
+- ✅ WORK.md - Progress tracking (maintained)
 
-**Dependencies**:
-- `playwright>=1.40.0` (browser automation)
-- `asyncio` (async operations)
+### ⏳ Phase 4: Testing (PENDING)
 
-**Testing**:
-- Can launch browser
-- Can navigate to local/remote URL
-- Can interact with Tweakpane controls
-- Can trigger exports
-
----
-
-### 1.2 Image Loading Automation
-
-**Goal**: Programmatically load images into the 3D scene
-
-**Approach**:
-- Use Playwright file chooser API
-- Wait for images to load (check imageStack via console API)
-- Verify all images loaded successfully
-
-**Implementation**:
-```python
-async def load_images(self, image_paths: list[str]):
-    # Find file input element
-    file_input = await self.page.query_selector('#image-input')
-
-    # Set files
-    await file_input.set_input_files(image_paths)
-
-    # Wait for images to appear in stack
-    await self.page.wait_for_function(
-        f"window.vexyStax.getImageStack().length === {len(image_paths)}"
-    )
-```
-
----
-
-## Phase 2: Fire CLI Interface
-
-### 2.1 CLI Structure
-
-**Goal**: Simple command-line interface using Fire
-
-**Commands**:
+**Prerequisites**:
 ```bash
-# Generate test images
-vexy-stax generate-test
-
-# Launch browser with images
-vexy-stax launch --images layer*.png
-
-# Export PNG from config
-vexy-stax export config.json --scale 2x
-
-# Capture animation video
-vexy-stax animate config.json --duration 3s --output video.webm
-```
-
-**Implementation**:
-```python
-# src/vexy_stax/cli.py
-import fire
-
-class VexyStaxCLI:
-    def generate_test(self, output_dir="test-img", count=3):
-        """Generate colored test images"""
-
-    def launch(self, images=None, url=None, headless=False):
-        """Launch browser with optional images"""
-
-    def export(self, config, scale=1, output=None):
-        """Export PNG from JSON config"""
-
-    def animate(self, config, duration="3s", output="animation.webm"):
-        """Capture animation video"""
-
-def main():
-    fire.Fire(VexyStaxCLI)
-```
-
-**Entry Point** (pyproject.toml):
-```toml
-[project.scripts]
-vexy-stax = "vexy_stax.cli:main"
-```
-
----
-
-### 2.2 Configuration Support
-
-**Goal**: Load/save configurations for automation
-
-**JSON Schema**:
-```json
-{
-  "images": ["layer1.png", "layer2.png", "layer3.png"],
-  "settings": {
-    "zSpacing": 100,
-    "bgColor": "#000000",
-    "cameraMode": "perspective",
-    "cameraFOV": 75,
-    "materialPreset": "Glossy Photo"
-  },
-  "export": {
-    "scale": 2,
-    "format": "png"
-  }
-}
-```
-
----
-
-## Phase 3: Video Capture System
-
-### 3.1 Animation Recording
-
-**Goal**: Capture the "hero shot" animation as video
-
-**Implementation**:
-```python
-# src/vexy_stax/capture.py
-class VideoCapture:
-    def __init__(self, page, fps=60):
-        self.page = page
-        self.fps = fps
-
-    async def record_animation(self, duration_seconds: float):
-        """Record animation frames"""
-        frames = []
-        frame_count = int(duration_seconds * self.fps)
-
-        # Trigger animation via console API
-        await self.page.evaluate("window.vexyStax.playAnimation()")
-
-        # Capture frames
-        for i in range(frame_count):
-            screenshot = await self.page.screenshot()
-            frames.append(screenshot)
-            await asyncio.sleep(1 / self.fps)
-
-        return frames
-
-    def encode_video(self, frames, output_path: str, codec="libvpx-vp9"):
-        """Encode frames to WebM using ffmpeg"""
-```
-
-**Dependencies**:
-- `ffmpeg-python>=0.2.0` (video encoding)
-- Or use `opencv-python` for frame encoding
-
----
-
-### 3.2 Screenshot Capture
-
-**Goal**: Capture high-resolution screenshots
-
-**Implementation**:
-```python
-async def capture_screenshot(self, scale: int = 1):
-    """Capture viewport at specified scale"""
-    # Set device scale factor
-    await self.page.set_viewport_size(
-        width=1920 * scale,
-        height=1080 * scale,
-        device_scale_factor=scale
-    )
-
-    screenshot = await self.page.screenshot(type='png')
-    return screenshot
-```
-
----
-
-## Phase 4: Test Image Generation
-
-### 4.1 Colored Layers
-
-**Goal**: Generate test images for development
-
-**Already Implemented**: `create_test_images.py`
-
-**Keep As Is**: This functionality is solid and useful
-
----
-
-## Dependencies
-
-### Required
-```toml
-dependencies = [
-    "playwright>=1.40.0",      # Browser automation
-    "fire>=0.6.0",             # CLI interface
-    "pillow>=11.0.0",          # Image generation
-    "ffmpeg-python>=0.2.0",    # Video encoding (optional)
-]
-```
-
-### Optional
-```toml
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-playwright>=0.4.0",
-]
-```
-
----
-
-## Build & Deployment
-
-### Build Script (`build.sh`)
-```bash
-#!/bin/bash
-set -e
-
-echo "Building vexy-stax-py..."
-
-# Install Playwright browsers
-python -m playwright install chromium
-
-# Build package
-uv build
-
-# Run tests
-pytest -v
-
-echo "Build complete!"
-```
-
-### Installation
-
-```bash
-# Install package
-pip install vexy-stax
-
-# Install Playwright browsers (first time only)
 playwright install chromium
 ```
 
----
+**End-to-End Tests**:
+1. Launch browser with images
+2. Load JSON config  
+3. Headless automation
+4. Animation playback
 
-## Usage Examples
-
-### Example 1: Generate and View Test Images
-```python
-from vexy_stax import VexyStaxBrowser
-from vexy_stax.test_images import generate_test_images
-import asyncio
-
-async def main():
-    # Generate test images
-    generate_test_images("test-img", count=3)
-
-    # Launch browser and load them
-    browser = VexyStaxBrowser()
-    await browser.launch()
-    await browser.load_images(["test-img/layer1.png",
-                               "test-img/layer2.png",
-                               "test-img/layer3.png"])
-
-    # Apply material
-    await browser.apply_material("Glossy Photo")
-
-    # Export
-    await browser.export_png(scale=2)
-
-    await browser.close()
-
-asyncio.run(main())
-```
-
-### Example 2: CLI Usage
-```bash
-# Generate test images
-vexy-stax generate-test
-
-# Launch with images
-vexy-stax launch --images test-img/*.png
-
-# Export from config
-vexy-stax export config.json --scale 2
-
-# Capture animation
-vexy-stax animate config.json --output hero-shot.webm
-```
-
----
-
-## Testing Strategy
-
-### Unit Tests
-- Test image generation (existing tests)
-- Test configuration parsing
+**Unit Tests** (Future):
+- Test image generation
 - Test CLI argument parsing
+- Mock Playwright tests (optional)
 
-### Integration Tests
-- Launch browser successfully
-- Load images via automation
-- Trigger exports
-- Verify exported files
+### ⏳ Phase 5: Video Recording (FUTURE)
 
-### E2E Tests
-- Full workflow: generate → launch → configure → export
-- Animation capture workflow
+**Goal**: Record GSAP animation to video file
+
+**Approaches**:
+1. Playwright built-in video recording
+2. MediaRecorder API + download
+3. Frame-by-frame capture → FFmpeg
+
+**CLI Command**:
+```bash
+vexy-stax record --images=test-img/ --output=hero.webm --fps=60
+```
+
+## Dependencies
+
+| Package | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| playwright | >=1.40.0 | Browser automation | ✅ Added |
+| fire | >=0.6.0 | CLI generation | ✅ Added |
+| pillow | >=11.0.0 | Image generation | ✅ Existing |
+| hatchling | - | Build backend | ✅ Configured |
+| hatch-vcs | - | Git-tag versioning | ✅ Configured |
+
+**Why These Packages**:
+- Playwright: Industry standard, reliable, well-documented
+- Fire: Minimal boilerplate, automatic help generation
+- Pillow: Standard Python imaging library
+
+## Integration with vexy-stax-js
+
+**Coordination Points**:
+1. Window API: Python calls `window.vexyStax.*` methods ✅
+2. Dev Server: Must run at localhost:5173 ✅  
+3. File Paths: Absolute paths passed to browser ✅
+4. JSON Format: Shared config format ✅
+
+**Sync Requirements**:
+- JS exposes window.vexyStax.loadConfig() ✅
+- JS supports file input for images ✅
+- JS has GSAP animation system ✅
+- Python generates compatible JSON ✅
+
+## Success Criteria
+
+**Must Have** (✅ Complete):
+- ✅ Python CLI can launch browser and load images
+- ✅ Can trigger GSAP animation from Python
+- ✅ Fire CLI provides natural command syntax
+- ✅ Test data generation works
+- ✅ Error handling for common issues
+- ✅ Proper API integration with JS
+
+**Should Have** (Current Focus):
+- 🔄 Comprehensive documentation
+- ⏳ End-to-end tests with real browser
+- ⏳ Unit tests for core functionality
+
+**Nice to Have** (Future):
+- Video recording during animation
 - Batch processing multiple configs
+- Screenshot comparison tools
 
----
+## Non-Goals (RED LIST)
 
-## Future Enhancements
+Per CLAUDE.md guidelines, we **DO NOT** add:
+- ❌ Analytics/metrics
+- ❌ Performance monitoring frameworks  
+- ❌ Advanced error recovery
+- ❌ Security hardening beyond basics
+- ❌ Configuration validation systems
+- ❌ Health monitoring
+- ❌ Circuit breakers/retry strategies
+- ❌ Sophisticated caching
+- ❌ Advanced logging frameworks
 
-1. **Batch Processing**: Process multiple configurations in parallel
-2. **Cloud Support**: Deploy to serverless (AWS Lambda + Playwright)
-3. **GUI Wrapper**: Optional Tkinter/Qt GUI for non-CLI users
-4. **Plugin System**: Allow custom automation scripts
-5. **Performance Monitoring**: Track render times, export quality
+## Next Steps
 
----
+**Immediate**:
+1. ✅ Create PLAN.md
+2. 🔄 Create TODO.md  
+3. ⏳ Update README.md
 
-## Migration from Current State
+**Short Term**:
+- Install Playwright browsers
+- Run end-to-end tests
+- Verify animation works
 
-### Remove
-- ❌ `validate_output.py` (validation is not core objective)
-- ❌ `tests/test_validate_output.py` (validation tests)
-- ❌ Validation-focused README sections
+**Medium Term**:
+- Add unit tests
+- Implement video recording
+- Test cross-platform
 
-### Rename
-- ✅ `create_test_images.py` → `test_images.py` (keep functionality)
-
-### Add
-- ✅ `browser.py` (Playwright automation)
-- ✅ `cli.py` (Fire CLI)
-- ✅ `capture.py` (Video/screenshot capture)
-- ✅ `examples/` directory (usage examples)
-- ✅ `build.sh` (build script)
-
----
-
-## Timeline
-
-- **Phase 1**: 2-3 days (Browser automation core)
-- **Phase 2**: 1-2 days (CLI interface)
-- **Phase 3**: 2-3 days (Video capture)
-- **Phase 4**: Already done (Test images)
-
-**Total**: ~1 week for MVP implementation
-
----
-
-**Status**: Planning phase complete. Ready for implementation.
+**Long Term**:
+- Publish to PyPI
+- Add to CI/CD
+- Create example workflows
