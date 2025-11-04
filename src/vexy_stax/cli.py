@@ -24,11 +24,11 @@ class VexyStaxCLI:
         """
         image_path = Path(images)
 
-        if image_path.is_file() and image_path.suffix == '.json':
+        if image_path.is_file() and image_path.suffix == ".json":
             browser.load_config(str(image_path))
             return True
         elif image_path.is_dir():
-            image_files = list(image_path.glob('*.png'))
+            image_files = list(image_path.glob("*.png"))
             if not image_files:
                 print(f"Error: No PNG files found in {images}")
                 return False
@@ -38,10 +38,12 @@ class VexyStaxCLI:
             print(f"Error: {images} is not a valid folder or JSON file")
             return False
 
-    def launch(self,
-               images: str | None = None,
-               url: str = "http://localhost:5173/vexy-stax-js/",
-               headless: bool = False):
+    def launch(
+        self,
+        images: str | None = None,
+        url: str = "http://localhost:5173/vexy-stax-js/",
+        headless: bool = False,
+    ):
         """
         Launch web app and load images
 
@@ -66,12 +68,14 @@ class VexyStaxCLI:
         finally:
             browser.close()
 
-    def animate(self,
-                images: str,
-                output: str = "animation.webm",
-                url: str = "http://localhost:5173/vexy-stax-js/",
-                duration: float = 1.5,
-                hold: float = 1.0):
+    def animate(
+        self,
+        images: str,
+        output: str = "animation.webm",
+        url: str = "http://localhost:5173/vexy-stax-js/",
+        duration: float = 1.5,
+        hold: float = 1.0,
+    ):
         """
         Animate and record video
 
@@ -98,17 +102,19 @@ class VexyStaxCLI:
             browser.play_animation(duration=duration, hold_time=hold)
 
             # TODO: Implement video recording
-            print(f"✓ Animation complete (recording not yet implemented)")
+            print("✓ Animation complete (recording not yet implemented)")
             print(f"TODO: Save to {output}")
 
         finally:
             browser.close()
 
-    def render(self,
-               images: str,
-               output: str,
-               url: str = "http://localhost:5173/vexy-stax-js/",
-               scale: int = 1):
+    def render(
+        self,
+        images: str,
+        output: str,
+        url: str = "http://localhost:5173/vexy-stax-js/",
+        scale: int = 1,
+    ):
         """
         Render composition to PNG file
 
@@ -144,5 +150,5 @@ def main():
     fire.Fire(VexyStaxCLI)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

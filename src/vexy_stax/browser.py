@@ -11,7 +11,9 @@ from pathlib import Path
 class VexyStaxBrowser:
     """Control Vexy Stax web app via Playwright"""
 
-    def __init__(self, url: str = "http://localhost:5173/vexy-stax-js/", headless: bool = False):
+    def __init__(
+        self, url: str = "http://localhost:5173/vexy-stax-js/", headless: bool = False
+    ):
         self.url = url
         self.headless = headless
         self.playwright = None
@@ -56,7 +58,9 @@ class VexyStaxBrowser:
             RuntimeError: If browser not launched or files don't exist
         """
         if not self.page:
-            raise RuntimeError("load_images: Browser not launched. Call launch() first.")
+            raise RuntimeError(
+                "load_images: Browser not launched. Call launch() first."
+            )
 
         # Validate all files exist before uploading
         for path in image_paths:
@@ -78,7 +82,7 @@ class VexyStaxBrowser:
 
         while elapsed < max_wait:
             stats = self.page.evaluate("window.vexyStax.getStats()")
-            if stats and stats.get('imageCount', 0) >= expected_count:
+            if stats and stats.get("imageCount", 0) >= expected_count:
                 # All images loaded
                 return
             self.page.wait_for_timeout(poll_interval)
@@ -86,7 +90,7 @@ class VexyStaxBrowser:
 
         # Timeout - check what we got
         final_stats = self.page.evaluate("window.vexyStax.getStats()")
-        loaded_count = final_stats.get('imageCount', 0) if final_stats else 0
+        loaded_count = final_stats.get("imageCount", 0) if final_stats else 0
         raise RuntimeError(
             f"Timeout waiting for images to load\n"
             f"Expected {expected_count} images, but only {loaded_count} loaded.\n"
@@ -104,11 +108,13 @@ class VexyStaxBrowser:
             RuntimeError: If browser not launched, file not found, or invalid JSON
         """
         if not self.page:
-            raise RuntimeError("load_config: Browser not launched. Call launch() first.")
+            raise RuntimeError(
+                "load_config: Browser not launched. Call launch() first."
+            )
 
         # Read JSON file with proper error handling
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config = json.load(f)
         except FileNotFoundError:
             raise RuntimeError(
@@ -122,15 +128,19 @@ class VexyStaxBrowser:
             ) from e
         except Exception as e:
             raise RuntimeError(
-                f"Failed to read config file: {config_path}\n"
-                f"Error: {str(e)}"
+                f"Failed to read config file: {config_path}\nError: {str(e)}"
             ) from e
 
         # Pass config to loadConfig API method (waits for promise to resolve)
         # The loadConfig function now returns a promise that resolves when all images are loaded
         self.page.evaluate("(config) => window.vexyStax.loadConfig(config)", config)
 
-    def play_animation(self, duration: float = 1.5, hold_time: float = 1.0, easing: str = "power2.inOut"):
+    def play_animation(
+        self,
+        duration: float = 1.5,
+        hold_time: float = 1.0,
+        easing: str = "power2.inOut",
+    ):
         """
         Play hero shot animation
 
@@ -140,18 +150,22 @@ class VexyStaxBrowser:
             easing: GSAP easing function
         """
         if not self.page:
-            raise RuntimeError("play_animation: Browser not launched. Call launch() first.")
+            raise RuntimeError(
+                "play_animation: Browser not launched. Call launch() first."
+            )
 
         # Use debug API to play animation
         animation_config = {
             "duration": duration,
             "holdTime": hold_time,
-            "easing": easing
+            "easing": easing,
         }
 
         # Call animation via JavaScript - Playwright waits for promise to resolve
         # The JS playAnimation() is async and returns a promise
-        self.page.evaluate("(config) => window.vexyStax.playAnimation(config)", animation_config)
+        self.page.evaluate(
+            "(config) => window.vexyStax.playAnimation(config)", animation_config
+        )
 
     def export_png(self, scale: int = 1, output_path: str | None = None) -> bytes:
         """
@@ -180,7 +194,7 @@ class VexyStaxBrowser:
 
         # Verify images are loaded before attempting export
         stats = self.page.evaluate("window.vexyStax.getStats()")
-        if not stats or stats.get('imageCount', 0) == 0:
+        if not stats or stats.get("imageCount", 0) == 0:
             raise RuntimeError(
                 "export_png: No images loaded in the app.\n"
                 "Load images with load_images() or load_config() first."
@@ -206,7 +220,7 @@ class VexyStaxBrowser:
         try:
             if output_path:
                 download.save_as(output_path)
-                return b''
+                return b""
             else:
                 return download.path().read_bytes()
         except Exception as e:
