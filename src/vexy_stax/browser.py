@@ -20,11 +20,21 @@ class VexyStaxBrowser:
 
     def launch(self):
         """Launch browser and navigate to app"""
-        self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=self.headless)
-        self.page = self.browser.new_page()
-        self.page.goto(self.url)
-        self.page.wait_for_load_state("networkidle")
+        try:
+            self.playwright = sync_playwright().start()
+            self.browser = self.playwright.chromium.launch(headless=self.headless)
+            self.page = self.browser.new_page()
+            self.page.goto(self.url, timeout=5000)
+            self.page.wait_for_load_state("networkidle")
+        except Exception as e:
+            self.close()
+            if "net::ERR_CONNECTION_REFUSED" in str(e) or "Timeout" in str(e):
+                raise RuntimeError(
+                    f"Cannot connect to {self.url}\n"
+                    f"Make sure the dev server is running:\n"
+                    f"  cd vexy-stax-js && npm run dev"
+                ) from e
+            raise
 
     def close(self):
         """Close browser"""

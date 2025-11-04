@@ -63,13 +63,40 @@ cd ../vexy-stax-js && npm run dev
 ./run.sh python -m vexy_stax.cli animate --images=test-img/layer123.json
 ```
 
+### Quality Improvements Iteration (2025-11-04)
+
+#### Completed Tasks ✅
+1. **Removed validation code** - Deleted validate_output.py per 101.md requirement
+2. **Updated pyproject.toml** - Removed validation references, updated description
+3. **Fixed browser.py API call** - Changed from non-existent pasteJSON() to window.vexyStax.loadConfig()
+
+#### JS Changes
+- Added `window.vexyStax.loadConfig(config)` API method to main.js
+- Updated help text with new API method
+- Build successful: 3.15s, 776.61 kB bundle
+
+#### Python Changes
+- Fixed load_config() to use proper API: `page.evaluate("(config) => window.vexyStax.loadConfig(config)", config)`
+- Module imports working: ✅
+- Browser.py simplified and functional
+
+#### Tests Passed
+```bash
+# Python module import
+./run.sh python -c "from vexy_stax.browser import VexyStaxBrowser; print('✓ OK')"
+# ✓ browser.py loads correctly
+
+# JS build
+cd ../vexy-stax-js && npm run build
+# ✓ built in 3.15s
+```
+
 ### Next Steps
 
 1. **Install and Test** - Verify Playwright works with actual browser
 2. **Video Recording** - Implement video capture during animation
 3. **Error Handling** - Add better error messages
 4. **Documentation** - Update README with usage examples
-5. **Remove Validation** - Delete validate_output.py (not core objective per 101.md)
 
 ### Notes
 
