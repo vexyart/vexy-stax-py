@@ -101,18 +101,9 @@ class VexyStaxBrowser:
             "easing": easing
         }
 
-        # Call animation via JavaScript
-        self.page.evaluate(f"""
-            window.vexyStax.playAnimation({{
-                duration: {duration},
-                holdTime: {hold_time},
-                easing: '{easing}'
-            }})
-        """)
-
-        # Wait for animation to complete (duration * 2 + hold_time + buffer)
-        total_time = (duration * 2 + hold_time + 0.5) * 1000
-        self.page.wait_for_timeout(int(total_time))
+        # Call animation via JavaScript - Playwright waits for promise to resolve
+        # The JS playAnimation() is async and returns a promise
+        self.page.evaluate("(config) => window.vexyStax.playAnimation(config)", animation_config)
 
     def export_png(self, scale: int = 1, output_path: str | None = None) -> bytes:
         """
@@ -124,22 +115,38 @@ class VexyStaxBrowser:
 
         Returns:
             PNG bytes
+
+        Raises:
+            RuntimeError: If download fails or times out
         """
         if not self.page:
             raise RuntimeError("Browser not launched")
 
-        # Trigger export via debug API
-        self.page.evaluate(f"window.vexyStax.exportPNG({scale})")
+        # Trigger export via debug API (safe parameter passing)
+        self.page.evaluate("(scale) => window.vexyStax.exportPNG(scale)", scale)
 
-        # Wait for download
-        with self.page.expect_download() as download_info:
-            download = download_info.value
+        # Wait for download with timeout
+        try:
+            with self.page.expect_download(timeout=10000) as download_info:
+                download = download_info.value
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to download PNG export: {str(e)}\n"
+                f"Make sure images are loaded in the app."
+            ) from e
 
-        if output_path:
-            download.save_as(output_path)
-            return b''
-        else:
-            return download.path().read_bytes()
+        # Verify download succeeded
+        if not download:
+            raise RuntimeError("Download failed - no file received")
+
+        try:
+            if output_path:
+                download.save_as(output_path)
+                return b''
+            else:
+                return download.path().read_bytes()
+        except Exception as e:
+            raise RuntimeError(f"Failed to save downloaded PNG: {str(e)}") from e
 
     def get_stats(self) -> dict:
         """Get current stats from web app"""
