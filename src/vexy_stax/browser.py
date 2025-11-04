@@ -68,19 +68,36 @@ class VexyStaxBrowser:
 
         Args:
             config_path: Path to JSON config file with images and settings
+
+        Raises:
+            RuntimeError: If browser not launched, file not found, or invalid JSON
         """
         if not self.page:
             raise RuntimeError("Browser not launched")
 
-        # Read JSON file
-        with open(config_path, 'r') as f:
-            config = json.load(f)
+        # Read JSON file with proper error handling
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            raise RuntimeError(
+                f"Config file not found: {config_path}\n"
+                f"Make sure the file exists and the path is correct."
+            )
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"Invalid JSON in config file: {config_path}\n"
+                f"Error at line {e.lineno}, column {e.colno}: {e.msg}"
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to read config file: {config_path}\n"
+                f"Error: {str(e)}"
+            ) from e
 
-        # Pass config to loadConfig API method
+        # Pass config to loadConfig API method (waits for promise to resolve)
+        # The loadConfig function now returns a promise that resolves when all images are loaded
         self.page.evaluate("(config) => window.vexyStax.loadConfig(config)", config)
-
-        # Wait for processing
-        self.page.wait_for_timeout(1000)
 
     def play_animation(self, duration: float = 1.5, hold_time: float = 1.0, easing: str = "power2.inOut"):
         """
