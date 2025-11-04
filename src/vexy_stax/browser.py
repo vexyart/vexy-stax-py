@@ -66,9 +66,8 @@ class VexyStaxBrowser:
         with open(config_path, 'r') as f:
             config = json.load(f)
 
-        # Use the paste JSON function via debug API
-        config_json = json.dumps(config)
-        self.page.evaluate(f"window.vexyStax.pasteJSON(JSON.parse('{config_json}'))")
+        # Pass config to loadConfig API method
+        self.page.evaluate("(config) => window.vexyStax.loadConfig(config)", config)
 
         # Wait for processing
         self.page.wait_for_timeout(1000)

@@ -6,14 +6,14 @@ build-backend = "hatchling.build"
 [project]
 name = "vexy-stax"
 dynamic = ["version"]
-description = "CLI tool for validating and testing Vexy Stax image stacking outputs"
+description = "CLI tool for automating Vexy Stax 3D image visualization via Playwright"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {file = "LICENSE"}
 authors = [
     {name = "Adam Twardoch", email = "adam+pypi@twardoch.com"},
 ]
-keywords = ["image", "stacking", "validation", "testing"]
+keywords = ["image", "stacking", "automation", "playwright", "3d", "visualization"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -29,7 +29,6 @@ dependencies = [
 
 [project.scripts]
 vexy-stax = "vexy_stax.cli:main"
-vexy-stax-validate = "vexy_stax.validate_output:main"
 vexy-stax-create-test = "vexy_stax.create_test_images:main"
 
 [tool.hatch.version]
