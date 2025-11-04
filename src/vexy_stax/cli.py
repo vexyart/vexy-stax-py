@@ -11,6 +11,33 @@ from .browser import VexyStaxBrowser
 class VexyStaxCLI:
     """CLI for controlling Vexy Stax web app via Playwright"""
 
+    def _load_images(self, browser: VexyStaxBrowser, images: str) -> bool:
+        """
+        Load images from folder or JSON config
+
+        Args:
+            browser: VexyStaxBrowser instance
+            images: Path to folder with images or JSON config file
+
+        Returns:
+            True if images loaded successfully, False otherwise
+        """
+        image_path = Path(images)
+
+        if image_path.is_file() and image_path.suffix == '.json':
+            browser.load_config(str(image_path))
+            return True
+        elif image_path.is_dir():
+            image_files = list(image_path.glob('*.png'))
+            if not image_files:
+                print(f"Error: No PNG files found in {images}")
+                return False
+            browser.load_images([str(f) for f in image_files])
+            return True
+        else:
+            print(f"Error: {images} is not a valid folder or JSON file")
+            return False
+
     def launch(self,
                images: str | None = None,
                url: str = "http://localhost:5173/vexy-stax-js/",
@@ -29,14 +56,7 @@ class VexyStaxCLI:
             browser.launch()
 
             if images:
-                image_path = Path(images)
-                if image_path.is_file() and image_path.suffix == '.json':
-                    browser.load_config(str(image_path))
-                elif image_path.is_dir():
-                    image_files = list(image_path.glob('*.png'))
-                    browser.load_images([str(f) for f in image_files])
-                else:
-                    print(f"Error: {images} is not a valid folder or JSON file")
+                if not self._load_images(browser, images):
                     return
 
             print("✓ Browser launched")
@@ -68,14 +88,7 @@ class VexyStaxCLI:
             browser.launch()
 
             # Load images
-            image_path = Path(images)
-            if image_path.is_file() and image_path.suffix == '.json':
-                browser.load_config(str(image_path))
-            elif image_path.is_dir():
-                image_files = list(image_path.glob('*.png'))
-                browser.load_images([str(f) for f in image_files])
-            else:
-                print(f"Error: {images} is not a valid folder or JSON file")
+            if not self._load_images(browser, images):
                 return
 
             print("✓ Images loaded")
