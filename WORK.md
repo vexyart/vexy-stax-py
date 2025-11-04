@@ -63,7 +63,7 @@ cd ../vexy-stax-js && npm run dev
 ./run.sh python -m vexy_stax.cli animate --images=test-img/layer123.json
 ```
 
-### Quality Improvements Iteration (2025-11-04)
+### Quality Improvements Iteration 1 (2025-11-04)
 
 #### Completed Tasks ✅
 1. **Removed validation code** - Deleted validate_output.py per 101.md requirement
@@ -90,6 +90,46 @@ cd ../vexy-stax-js && npm run dev
 cd ../vexy-stax-js && npm run build
 # ✓ built in 3.15s
 ```
+
+### Quality Improvements Iteration 2 (2025-11-04)
+
+#### Completed Tasks ✅
+1. **Fixed missing texture property** - Added texture to imageStack.push() in 3 locations (main.js lines 2072, 2430, 2573)
+2. **Added error handling** - browser.py now catches connection errors and shows helpful message
+3. **Created PLAN.md and TODO.md** - Comprehensive documentation for both repos per 101.md Task 2
+
+#### JS Changes (vexy-stax-js)
+- Fixed imageStack entries missing texture property
+  - Line 2072: Main image loading function
+  - Line 2430: importJSON function
+  - Line 2573: pasteJSON function
+- Created PLAN.md (302 lines) - 8 phases, architecture, API contract
+- Created TODO.md (148 lines) - Flat checkbox format
+- Build successful: 4.54s
+
+#### Python Changes (vexy-stax-py)
+- Added try-catch in browser.py launch() method
+- 5s timeout on page.goto()
+- Helpful error message when dev server not running
+- Created PLAN.md (192 lines) - 5 phases, dependencies, integration
+- Created TODO.md (66 lines) - Flat checkbox format
+
+#### Tests Passed
+```bash
+# Python module import
+./run.sh python -c "from vexy_stax.browser import VexyStaxBrowser; print('✓ OK')"
+# ✓ browser.py loads correctly
+
+# JS build
+cd ../vexy-stax-js && npm run build
+# ✓ built in 4.54s
+```
+
+#### Bug Fixes
+**Issue**: imageStack entries missing texture property caused undefined errors
+**Impact**: Code accessing img.texture.image (e.g., in getStats(), exportJSON()) would fail
+**Fix**: Added texture property to all imageStack.push() calls
+**Result**: All imageStack entries now have consistent structure
 
 ### Next Steps
 
