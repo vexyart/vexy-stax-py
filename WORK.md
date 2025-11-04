@@ -30,20 +30,37 @@
 
 ### Testing
 
-#### Test 1: Basic Functionality (Planned)
+#### Test 1: Image Generation ✅
 ```bash
-# Generate test images
-python -m vexy_stax.create_test_images
+./run.sh python -m vexy_stax.create_test_images
+# ✓ Created test-img/layer1.png, layer2.png, layer3.png
+```
 
-# Install dependencies
-uv pip install -e .
-playwright install chromium
+#### Test 2: Module Imports ✅
+```bash
+./run.sh python -c "from vexy_stax.browser import VexyStaxBrowser; print('✓ OK')"
+# ✓ All modules import successfully without installation
+```
 
-# Test browser launch
-vexy-stax launch --images=test-img/
+#### Test 3: Dev Server ✅
+```bash
+cd ../vexy-stax-js && npm run dev
+# ✓ Server running at http://localhost:5173/vexy-stax-js/
+```
 
-# Test animation
-vexy-stax animate --images=test-img/layer123.json
+#### Test 4: Run Script Created ✅
+- Added `run.sh` for easy development
+- Sets PYTHONPATH automatically
+- Shows helpful usage examples
+- No pip install needed for testing
+
+#### Test 5: Full Browser Automation (Ready)
+```bash
+# Install Playwright browsers first:
+# playwright install chromium
+
+./run.sh python -m vexy_stax.cli launch --images=test-img/
+./run.sh python -m vexy_stax.cli animate --images=test-img/layer123.json
 ```
 
 ### Next Steps
