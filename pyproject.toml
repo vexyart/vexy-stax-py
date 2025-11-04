@@ -1,0 +1,20 @@
+# this_file: pyproject.toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vexy-stax"
+version = "0.0.0"
+description = "Utility scripts and tests for the Vexy Stax project."
+dependencies = []
+
+[tool.hatch.envs."hatch-test"]
+skip-install = true
+dependencies = [
+  "pillow",
+  "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
