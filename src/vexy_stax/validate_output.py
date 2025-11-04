@@ -2,7 +2,7 @@
 # /// script
 # dependencies = ["pillow"]
 # ///
-# this_file: validate_output.py
+# this_file: vexy-stax-py/src/vexy_stax/validate_output.py
 """
 Output validation script for all vexy-stax projects.
 Validates that generated PNG files are valid and have expected dimensions.

@@ -1,13 +1,39 @@
-# this_file: pyproject.toml
+# this_file: vexy-stax-py/pyproject.toml
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "vexy-stax"
-version = "0.0.0"
-description = "Utility scripts and tests for the Vexy Stax project."
-dependencies = []
+dynamic = ["version"]
+description = "CLI tool for validating and testing Vexy Stax image stacking outputs"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Adam Twardoch", email = "adam+pypi@twardoch.com"},
+]
+keywords = ["image", "stacking", "validation", "testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "pillow>=11.0.0",
+]
+
+[project.scripts]
+vexy-stax-validate = "vexy_stax.validate_output:main"
+vexy-stax-create-test = "vexy_stax.create_test_images:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/vexy_stax/_version.py"
 
 [tool.hatch.envs."hatch-test"]
 skip-install = true
