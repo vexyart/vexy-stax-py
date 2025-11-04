@@ -36,11 +36,11 @@
 - [ ] Add Playwright installation instructions
 - [ ] Add usage examples for CLI commands
 
-## Phase 3.5: Code Quality Iteration 3 🔄
+## Phase 3.5: Code Quality Iteration 3 ✅
 
-- [ ] Fix f-string injection in browser.py play_animation()
-- [ ] Improve play_animation() to wait for completion instead of timeout
-- [ ] Add error handling for failed downloads in export_png()
+- [x] Fix f-string injection in browser.py play_animation()
+- [x] Improve play_animation() to wait for completion instead of timeout
+- [x] Add error handling for failed downloads in export_png()
 
 ## Phase 4: Testing ⏳
 
