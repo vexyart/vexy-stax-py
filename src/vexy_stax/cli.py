@@ -104,6 +104,40 @@ class VexyStaxCLI:
         finally:
             browser.close()
 
+    def render(self,
+               images: str,
+               output: str,
+               url: str = "http://localhost:5173/vexy-stax-js/",
+               scale: int = 1):
+        """
+        Render composition to PNG file
+
+        Args:
+            images: Path to folder with images or JSON config file
+            output: Output PNG file path
+            url: URL of vexy-stax-js app
+            scale: Resolution scale (1x, 2x, or 4x)
+        """
+        browser = VexyStaxBrowser(url=url, headless=True)
+
+        try:
+            browser.launch()
+
+            # Load images
+            if not self._load_images(browser, images):
+                return
+
+            print("✓ Images loaded")
+
+            # Export PNG
+            print(f"⏵ Exporting PNG at {scale}x resolution...")
+            browser.export_png(scale=scale, output_path=output)
+
+            print(f"✓ PNG exported to {output}")
+
+        finally:
+            browser.close()
+
 
 def main():
     """Entry point for vexy-stax CLI"""
