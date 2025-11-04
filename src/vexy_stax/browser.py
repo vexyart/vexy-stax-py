@@ -158,7 +158,7 @@ class VexyStaxBrowser:
         Export current view as PNG
 
         Args:
-            scale: Resolution scale (1x, 2x, 4x)
+            scale: Resolution scale (1x, 2x, or 4x)
             output_path: Optional path to save PNG file
 
         Returns:
@@ -166,9 +166,25 @@ class VexyStaxBrowser:
 
         Raises:
             RuntimeError: If download fails or times out
+            ValueError: If scale is not 1, 2, or 4
         """
         if not self.page:
             raise RuntimeError("export_png: Browser not launched. Call launch() first.")
+
+        # Validate scale parameter
+        if scale not in (1, 2, 4):
+            raise ValueError(
+                f"Invalid scale: {scale}\n"
+                f"Scale must be 1, 2, or 4 (for 1x, 2x, or 4x resolution)"
+            )
+
+        # Verify images are loaded before attempting export
+        stats = self.page.evaluate("window.vexyStax.getStats()")
+        if not stats or stats.get('imageCount', 0) == 0:
+            raise RuntimeError(
+                "export_png: No images loaded in the app.\n"
+                "Load images with load_images() or load_config() first."
+            )
 
         # Trigger export via debug API (safe parameter passing)
         self.page.evaluate("(scale) => window.vexyStax.exportPNG(scale)", scale)
