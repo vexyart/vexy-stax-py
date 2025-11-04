@@ -51,16 +51,47 @@ class VexyStaxBrowser:
 
         Args:
             image_paths: List of paths to PNG files
+
+        Raises:
+            RuntimeError: If browser not launched or files don't exist
         """
         if not self.page:
-            raise RuntimeError("Browser not launched")
+            raise RuntimeError("load_images: Browser not launched. Call launch() first.")
+
+        # Validate all files exist before uploading
+        for path in image_paths:
+            if not Path(path).exists():
+                raise RuntimeError(
+                    f"Image file not found: {path}\n"
+                    f"Make sure the file exists and the path is correct."
+                )
 
         # Use file input to upload images
         file_input = self.page.locator('input[type="file"]')
         file_input.set_input_files(image_paths)
 
-        # Wait for images to load
-        self.page.wait_for_timeout(1000)
+        # Wait for images to load by polling imageStack count
+        expected_count = len(image_paths)
+        max_wait = 5000  # 5 seconds max
+        poll_interval = 100  # Check every 100ms
+        elapsed = 0
+
+        while elapsed < max_wait:
+            stats = self.page.evaluate("window.vexyStax.getStats()")
+            if stats and stats.get('imageCount', 0) >= expected_count:
+                # All images loaded
+                return
+            self.page.wait_for_timeout(poll_interval)
+            elapsed += poll_interval
+
+        # Timeout - check what we got
+        final_stats = self.page.evaluate("window.vexyStax.getStats()")
+        loaded_count = final_stats.get('imageCount', 0) if final_stats else 0
+        raise RuntimeError(
+            f"Timeout waiting for images to load\n"
+            f"Expected {expected_count} images, but only {loaded_count} loaded.\n"
+            f"Images may be too large or have failed to load."
+        )
 
     def load_config(self, config_path: str):
         """
@@ -73,7 +104,7 @@ class VexyStaxBrowser:
             RuntimeError: If browser not launched, file not found, or invalid JSON
         """
         if not self.page:
-            raise RuntimeError("Browser not launched")
+            raise RuntimeError("load_config: Browser not launched. Call launch() first.")
 
         # Read JSON file with proper error handling
         try:
@@ -109,7 +140,7 @@ class VexyStaxBrowser:
             easing: GSAP easing function
         """
         if not self.page:
-            raise RuntimeError("Browser not launched")
+            raise RuntimeError("play_animation: Browser not launched. Call launch() first.")
 
         # Use debug API to play animation
         animation_config = {
@@ -137,7 +168,7 @@ class VexyStaxBrowser:
             RuntimeError: If download fails or times out
         """
         if not self.page:
-            raise RuntimeError("Browser not launched")
+            raise RuntimeError("export_png: Browser not launched. Call launch() first.")
 
         # Trigger export via debug API (safe parameter passing)
         self.page.evaluate("(scale) => window.vexyStax.exportPNG(scale)", scale)
@@ -166,8 +197,16 @@ class VexyStaxBrowser:
             raise RuntimeError(f"Failed to save downloaded PNG: {str(e)}") from e
 
     def get_stats(self) -> dict:
-        """Get current stats from web app"""
+        """
+        Get current stats from web app
+
+        Returns:
+            Dictionary with imageCount, memoryUsage, and other stats
+
+        Raises:
+            RuntimeError: If browser not launched
+        """
         if not self.page:
-            raise RuntimeError("Browser not launched")
+            raise RuntimeError("get_stats: Browser not launched. Call launch() first.")
 
         return self.page.evaluate("window.vexyStax.getStats()")
