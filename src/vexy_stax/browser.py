@@ -3,9 +3,29 @@
 
 """Playwright browser automation for Vexy Stax web app"""
 
-from playwright.sync_api import sync_playwright, Page, Browser
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page, Browser
+
+
+def _import_playwright():
+    """Import playwright with helpful error message if not installed."""
+    try:
+        from playwright.sync_api import sync_playwright
+
+        return sync_playwright
+    except ImportError as exc:
+        raise ImportError(
+            "Playwright is not installed. Install it with:\n"
+            "  pip install 'vexy-stax[browser]'\n"
+            "or:\n"
+            "  pip install playwright && playwright install chromium"
+        ) from exc
 
 
 class VexyStaxBrowser:
@@ -23,11 +43,16 @@ class VexyStaxBrowser:
     def launch(self):
         """Launch browser and navigate to app"""
         try:
+            sync_playwright = _import_playwright()
             self.playwright = sync_playwright().start()
             self.browser = self.playwright.chromium.launch(headless=self.headless)
             self.page = self.browser.new_page()
-            self.page.goto(self.url, timeout=5000)
+            self.page.goto(self.url, timeout=10000)
             self.page.wait_for_load_state("networkidle")
+            # Wait for vexyStax API to be available (may take time after JS loads)
+            self.page.wait_for_function(
+                "typeof window.vexyStax !== 'undefined'", timeout=15000
+            )
         except Exception as e:
             self.close()
             if "net::ERR_CONNECTION_REFUSED" in str(e) or "Timeout" in str(e):
@@ -131,9 +156,11 @@ class VexyStaxBrowser:
                 f"Failed to read config file: {config_path}\nError: {str(e)}"
             ) from e
 
-        # Pass config to loadConfig API method (waits for promise to resolve)
-        # The loadConfig function now returns a promise that resolves when all images are loaded
-        self.page.evaluate("(config) => window.vexyStax.loadConfig(config)", config)
+        # Pass config to loadConfig API method and await the promise
+        # The loadConfig function returns a promise that resolves when all images are loaded
+        self.page.evaluate(
+            "async (config) => await window.vexyStax.loadConfig(config)", config
+        )
 
     def play_animation(
         self,
@@ -219,7 +246,9 @@ class VexyStaxBrowser:
 
         try:
             if output_path:
-                download.save_as(output_path)
+                target = Path(output_path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                download.save_as(str(target))
                 return b""
             else:
                 return download.path().read_bytes()

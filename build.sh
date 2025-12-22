@@ -2,6 +2,8 @@
 # this_file: vexy-stax-py/build.sh
 # Build script for vexy-stax-py
 
+cd "$(dirname "$0")"
+
 set -e  # Exit on error
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -9,51 +11,32 @@ echo "  Building vexy-stax-py"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo
 
-# Check if Python is installed
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Error: Python 3 is not installed"
-    echo "   Install from: https://www.python.org/"
+# Check if uv is installed (required)
+if ! command -v uv &> /dev/null; then
+    echo "❌ Error: uv is not installed"
+    echo "   Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 --version)
-echo "✓ $PYTHON_VERSION"
+echo "✓ uv $(uv --version | head -n1)"
+echo
 
-# Check if uv is installed (recommended)
-if command -v uv &> /dev/null; then
-    echo "✓ uv $(uv --version | head -n1)"
-    BUILD_CMD="uv build"
-    echo
-else
-    echo "⚠️  uv not found (using pip instead)"
-    echo "   Install uv for faster builds: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    BUILD_CMD="python3 -m build"
-    echo
+# Sync dependencies
+echo "📦 Syncing dependencies..."
+uv sync --quiet
+echo
 
-    # Check if build module is installed
-    if ! python3 -c "import build" 2>/dev/null; then
-        echo "📦 Installing build module..."
-        python3 -m pip install --upgrade build
-        echo
-    fi
-fi
-
-# Run tests first (if pytest is available)
-if python3 -c "import pytest" 2>/dev/null; then
-    echo "🧪 Running tests..."
-    python3 -m pytest -v || {
-        echo
-        echo "⚠️  Tests failed, but continuing with build..."
-        echo
-    }
-else
-    echo "⚠️  pytest not found, skipping tests"
+# Run tests
+echo "🧪 Running tests..."
+uv run pytest -v || {
     echo
-fi
+    echo "⚠️  Tests failed, but continuing with build..."
+    echo
+}
 
 # Build package
 echo "🔨 Building package..."
-$BUILD_CMD
+uv build
 
 echo
 
@@ -92,4 +75,6 @@ echo "  # Create git tag first:"
 echo "  git tag v0.1.0"
 echo "  git push origin v0.1.0"
 echo "  # GitHub Actions will auto-publish"
+echo
+echo "Note: Python package has no web UI. Use vexy-stax-js for the web app."
 echo

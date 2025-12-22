@@ -1,0 +1,92 @@
+# this_file: vexy-stax-py/src/vexy_stax/renderer/camera.py
+"""Camera factories and hero timeline easing helpers."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import pygfx as gfx
+
+from ..config import DEFAULT_PADDING, AnimationDefaults
+from ..models import SceneConfig
+
+
+def ease_power2_in_out(t: float) -> float:
+    """Smooth in/out easing mirroring GSAP ``power2.inOut``."""
+
+    if t <= 0.0:
+        return 0.0
+    if t >= 1.0:
+        return 1.0
+    if t < 0.5:
+        return 2 * (t**2)
+    return 1 - 2 * ((1 - t) ** 2)
+
+
+def make_camera(scene: SceneConfig, aspect_ratio: float) -> Any:
+    """Instantiate a pygfx camera based on scene metadata."""
+
+    mode = scene.params.camera_mode
+    if mode == "orthographic":
+        width = (scene.images[0].width if scene.images else 1) * DEFAULT_PADDING
+        height = (scene.images[0].height if scene.images else 1) * DEFAULT_PADDING
+        camera = gfx.OrthographicCamera(width=width, height=height)
+    else:
+        fov = scene.params.camera_fov or (30.0 if mode == "telephoto" else 50.0)
+        camera = gfx.PerspectiveCamera(fov=fov, aspect=aspect_ratio)
+
+    if scene.camera is not None:
+        camera.world.position = (scene.camera.x, scene.camera.y, scene.camera.z)
+    else:
+        depth = len(scene.images) * scene.params.z_spacing or 1.0
+        camera.world.position = (0.0, 0.0, depth * DEFAULT_PADDING + 2.0)
+
+    camera.look_at((0.0, 0.0, 0.0))
+    return camera
+
+
+@dataclass(slots=True, frozen=True)
+class SpacingTimeline:
+    frames: list[float]
+    fps: int
+
+    @property
+    def duration(self) -> float:
+        return len(self.frames) / self.fps
+
+
+def build_spacing_timeline(
+    *,
+    spacing: float,
+    defaults: AnimationDefaults,
+) -> SpacingTimeline:
+    total_frames = max(1, int(round(defaults.duration * defaults.fps)))
+    hold_frames = max(0, int(round(defaults.hold * defaults.fps)))
+
+    frames: list[float] = []
+    for index in range(total_frames):
+        t = index / max(total_frames - 1, 1)
+        progress = ease_power2_in_out(t)
+        frames.append(spacing * (1 - progress))
+
+    frames.extend([0.0] * hold_frames)
+
+    if abs(frames[-1]) > 1e-4:
+        raise ValueError(
+            "Hero spacing timeline must collapse to zero by the final frame"
+        )
+
+    for earlier, later in zip(frames, frames[1:]):
+        if later > earlier + 1e-6:
+            raise ValueError("Hero spacing timeline must be non-increasing")
+
+    return SpacingTimeline(frames=frames, fps=defaults.fps)
+
+
+__all__ = [
+    "SpacingTimeline",
+    "build_spacing_timeline",
+    "ease_power2_in_out",
+    "make_camera",
+]

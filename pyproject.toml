@@ -1,4 +1,4 @@
-# this_file: vexy-stax-py/pyproject.toml
+# this_file: pyproject.toml
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "vexy-stax"
 dynamic = ["version"]
-description = "CLI tool for automating Vexy Stax 3D image visualization via Playwright"
+description = "Headless 3D renderer for layered image stacks with depth effects (pygfx + Playwright)"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {file = "LICENSE"}
@@ -20,11 +20,26 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
 ]
 dependencies = [
     "pillow>=11.0.0",
-    "playwright>=1.40.0",
     "fire>=0.6.0",
+    "numpy>=1.26.0",
+    "imageio[ffmpeg]>=2.36.0",
+    "pydantic>=2.8.0",
+    "pygfx>=0.15.0",
+    "wgpu[glfw]>=0.17.0",
+    "rich>=14.2.0",
+]
+
+[project.optional-dependencies]
+browser = [
+    "playwright>=1.40.0",
+]
+all = [
+    "playwright>=1.40.0",
 ]
 
 [project.scripts]
@@ -42,7 +57,27 @@ skip-install = true
 dependencies = [
   "pillow",
   "pytest",
+  "numpy",
+  "imageio",
+  "pydantic",
+  "fire",
+  "playwright",
+  "pygfx",
+  "wgpu",
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src", "."]
+markers = [
+    "unit: Unit tests (isolated, fast, no external dependencies)",
+    "integration: Integration tests (multiple components, may use stubs)",
+    "gpu_required: Tests requiring GPU hardware (skipped if unavailable)",
+    "slow: Slow tests (>1s per test)",
+    "playwright: Tests requiring Playwright browser automation",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]

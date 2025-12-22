@@ -1,635 +1,251 @@
+---
+this_file: README.md
+---
+
 # Vexy Stax PY
 
-**Python CLI tools for testing and validating vexy-stax-js outputs**
+> Headless Python renderer for vexy-stax JSON scenes → PNG stills and MP4/MOV animations.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![PyPI](https://img.shields.io/badge/PyPI-vexy--stax-blue)](https://pypi.org/project/vexy-stax/)
+## Current Status
 
-Vexy Stax PY is a Python CLI package that provides test image generation and PNG validation tools for the **vexy-stax-js** web application. It enables automated testing workflows and quality assurance for 3D image stack visualization.
+### ✅ Working Now
+- **pygfx headless rendering** (default): Real GPU rendering via Metal/Vulkan/DirectX (113/117 tests)
+- **PNG export**: High-quality stills with supersampling (1×, 2×, 4×)
+- **Video export**: MP4/MOV hero-shot animations with codec fallback
+- **CLI backend selection**: `--backend=pygfx` (default) or `--backend=playwright`
+- **GPU diagnostics**: `vexy-stax doctor` command for troubleshooting
 
----
+### 📦 Browser Backend (Optional)
+- Playwright browser automation available via `pip install vexy-stax[browser]`
+- Use `--backend=playwright` for pixel-perfect match to vexy-stax-js web UI
 
-## 🚀 Quick Start
+## Quick Start
 
-### Installation
-
+### Pygfx headless rendering (recommended)
 ```bash
-# Install from PyPI (when published)
-pip install vexy-stax
+# 1. Install the package
+uv sync
 
-# Or install from source
-git clone https://github.com/vexyart/vexy-stax-py.git
-cd vexy-stax-py
-pip install -e .
+# 2. Check GPU availability
+uv run vexy-stax doctor
+
+# 3. Create test scene
+uv run vexy-stax-create-test  # generates test-img/layer123.json
+
+# 4. Render PNG with GPU (pygfx is now default)
+uv run vexy-stax render test-img/layer123.json output.png
+
+# 5. Export hero-shot video
+uv run vexy-stax animate test-img/layer123.json hero.mp4
 ```
 
-### Usage
+## Commands
 
+### `vexy-stax doctor`
+Check GPU availability and get platform-specific advice:
 ```bash
-# Generate test images (creates test-img/ folder)
-vexy-stax-create-test
+uv run vexy-stax doctor
+```
+Output shows adapter name, backend (Metal/Vulkan/DirectX), and recommendations if GPU unavailable.
 
-# Validate PNG exports from vexy-stax-js
-vexy-stax-validate
+### `vexy-stax render`
+
+**Pygfx backend (default):**
+```bash
+uv run vexy-stax render scene.json output.png \
+  --width=1920 \
+  --height=1080 \
+  --scale=2  # 1, 2, or 4 for supersampling
 ```
 
----
-
-## 📖 Table of Contents
-
-- [What It Does](#what-it-does)
-- [How It Works](#how-it-works)
-- [Integration with vexy-stax-js](#integration-with-vexy-stax-js)
-- [CLI Commands](#cli-commands)
-- [Architecture](#architecture)
-- [Development](#development)
-- [Testing](#testing)
-- [Versioning & Releases](#versioning--releases)
-
----
-
-## What It Does
-
-Vexy Stax PY provides two essential CLI tools for the vexy-stax ecosystem:
-
-1. **Test Image Generator** (`vexy-stax-create-test`):
-   - Creates colored PNG layers for testing 3D stack visualization
-   - Generates consistent test assets for development and QA
-   - Produces labeled images (Layer 1 - Red, Layer 2 - Cyan, Layer 3 - Yellow)
-
-2. **PNG Output Validator** (`vexy-stax-validate`):
-   - Validates PNG files exported from vexy-stax-js
-   - Checks file format, dimensions, and content validity
-   - Detects blank or corrupted outputs
-   - Used for automated testing and quality assurance
-
-### Use Cases
-- **Development**: Generate test images quickly without manual creation
-- **Testing**: Validate vexy-stax-js PNG exports in CI/CD pipelines
-- **QA**: Verify output quality across different browser/OS combinations
-- **Automation**: Integrate into test suites for continuous validation
-
----
-
-## How It Works
-
-### Test Image Creation (`vexy-stax-create-test`)
-
-**Process Flow**:
-```
-1. Create test-img/ directory in current working directory
-2. Generate 3 PNG files:
-   - layer1.png (400×300px, #FF6B6B red with label)
-   - layer2.png (400×300px, #4ECDC4 cyan with label)
-   - layer3.png (400×300px, #FFE66D yellow with label)
-3. Use Pillow (PIL) to create RGBA images
-4. Apply font rendering for labels (Helvetica on macOS, fallback to default)
-5. Save as PNG with optimal compression
+**Playwright backend (optional, requires `vexy-stax[browser]`):**
+```bash
+uv run vexy-stax render scene.json output.png \
+  --backend=playwright \
+  --url=http://localhost:5173/vexy-stax-js/
 ```
 
-**Implementation**:
-```python
-# src/vexy_stax/create_test_images.py
-def main():
-    test_dir = Path.cwd() / "test-img"
-    test_dir.mkdir(exist_ok=True)
+### `vexy-stax animate`
 
-    colors = [
-        ("#FF6B6B", "Layer 1 - Red"),
-        ("#4ECDC4", "Layer 2 - Cyan"),
-        ("#FFE66D", "Layer 3 - Yellow"),
-    ]
-
-    for i, (color, label) in enumerate(colors, 1):
-        img = Image.new("RGBA", (400, 300), color)
-        draw = ImageDraw.Draw(img)
-        draw.text((100, 126), label, fill="black", font=font)
-        img.save(test_dir / f"layer{i}.png")
+**Pygfx backend (default, exports video):**
+```bash
+uv run vexy-stax animate scene.json hero.mp4 \
+  --width=1920 \
+  --height=1080 \
+  --fps=30 \
+  --duration=1.5 \
+  --hold=1.0
 ```
+Exports MP4 (H.264) or MOV (ProRes) based on output extension.
 
-**Output Format**:
-- **Format**: PNG with alpha channel (RGBA)
-- **Dimensions**: 400×300 pixels (consistent test size)
-- **Colors**: High-contrast colors for easy visual verification
-- **Labels**: Black text identifying each layer
-
-### PNG Validation (`vexy-stax-validate`)
-
-**Validation Checks**:
-1. **File Existence**: Verifies file is present at expected path
-2. **Format Check**: Confirms file is PNG (not JPEG/other)
-3. **Dimension Check**: Validates width/height match expectations
-4. **Content Check**: Detects blank images (all-black or all-transparent)
-5. **Metadata Extraction**: Reports actual dimensions, color mode, file size
-
-**Implementation**:
-```python
-# src/vexy_stax/validate_output.py
-def validate_png(
-    path: Path,
-    expected_width: int | None = None,
-    expected_height: int | None = None
-) -> tuple[bool, str]:
-    if not path.exists():
-        return False, f"File not found: {path}"
-
-    with Image.open(path) as img:
-        if img.format != "PNG":
-            return False, f"Not PNG format (got: {img.format})"
-
-        if expected_width and img.width != expected_width:
-            return False, f"Width mismatch: expected {expected_width}px"
-
-        # Check if image has content (not blank)
-        data = list(img.getdata())
-        if all(pixel == (0,0,0) or pixel == (0,0,0,0) for pixel in data[:100]):
-            return False, "Image appears to be blank"
-
-        return True, ""
+**Playwright backend (optional, preview only):**
+```bash
+uv run vexy-stax animate ./layers --backend=playwright
 ```
+Plays animation in headless browser but does not export video.
 
-**Exit Codes**:
-- `0`: All validations passed
-- `1`: One or more validations failed
+### `vexy-stax compare`
+Compare two images and report visual similarity:
+```bash
+uv run vexy-stax compare pygfx_render.png js_reference.png
 
----
-
-## Integration with vexy-stax-js
-
-Vexy Stax PY is designed as a **complementary tool** for the vexy-stax-js web application:
-
-### Integration Workflow
-
+# With diff visualization
+uv run vexy-stax compare pygfx_render.png js_reference.png --diff-output=diff.png
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Development & Testing Workflow                            │
-└─────────────────────────────────────────────────────────────┘
+Shows MAE, pixel match ratio, and pass/fail status.
 
-1. GENERATE TEST IMAGES
-   $ vexy-stax-create-test
-   ├── Creates test-img/layer1.png
-   ├── Creates test-img/layer2.png
-   └── Creates test-img/layer3.png
-
-2. LOAD IN WEB APP
-   Open https://vexyart.github.io/vexy-stax-js/
-   ├── Drag & drop test-img/*.png files
-   ├── Arrange in 3D space
-   ├── Apply materials and camera settings
-   └── Export PNG (1x, 2x, or 4x resolution)
-
-3. VALIDATE EXPORTS
-   $ vexy-stax-validate
-   ├── Checks PNG format and dimensions
-   ├── Verifies content is not blank
-   └── Reports validation results
-
-4. ITERATE
-   ├── Fix any issues found during validation
-   ├── Re-export from web app
-   └── Re-validate until all checks pass
-```
-
-### Why Separate Python Tool?
-
-**Separation of Concerns**:
-- **Web App** (vexy-stax-js): Handles interactive 3D visualization and user interface
-- **CLI Tool** (vexy-stax-py): Handles automated testing and validation
-
-**Benefits**:
-1. **Cross-Platform Testing**: Generate consistent test images regardless of browser
-2. **CI/CD Integration**: Validate exports in automated pipelines (GitHub Actions)
-3. **Offline Testing**: Create test assets without running web server
-4. **Scripting**: Easily integrate into test automation scripts
-5. **Versioning**: Test image generation stays consistent across versions
-
-### Example CI/CD Pipeline
-
-```yaml
-# .github/workflows/test.yml
-name: Test vexy-stax-js
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Install Python CLI
-      - name: Install vexy-stax-py
-        run: pip install vexy-stax
-
-      # Generate test images
-      - name: Create test images
-        run: vexy-stax-create-test
-
-      # Build web app
-      - name: Build vexy-stax-js
-        run: |
-          cd vexy-stax-js
-          npm ci
-          npm run build
-
-      # Run automated tests (hypothetical headless browser test)
-      - name: Generate exports
-        run: node scripts/headless-export.js
-
-      # Validate exports
-      - name: Validate PNG outputs
-        run: vexy-stax-validate
-```
-
----
-
-## CLI Commands
+### `vexy-stax version`
+Show package version and backend capabilities.
 
 ### `vexy-stax-create-test`
+Generate test images and JSON scene for quick imports.
 
-**Purpose**: Generate colored test images for development and testing
+## Scene JSON Format
 
-**Usage**:
-```bash
-vexy-stax-create-test
+The Python renderer reads JSON scenes exported from vexy-stax-js:
+
+```json
+{
+  "version": "1.0",
+  "params": {
+    "zSpacing": 150,
+    "bgColor": "#1a1a2e",
+    "transparentBg": false,
+    "cameraMode": "perspective",
+    "cameraFov": 75,
+    "cameraZoom": 1.0
+  },
+  "camera": {
+    "position": { "x": 200, "y": 150, "z": 400 }
+  },
+  "settings": {
+    "viewpoint": "beauty",
+    "material": "glossy",
+    "materialThickness": 5,
+    "floorOpacity": 0.3,
+    "ambientMode": false
+  },
+  "images": [
+    {
+      "filename": "back.png",
+      "width": 800,
+      "height": 600,
+      "data": "data:image/png;base64,..."
+    }
+  ]
+}
 ```
 
-**Behavior**:
-- Creates `./test-img/` directory in current working directory
-- Generates 3 PNG files (layer1.png, layer2.png, layer3.png)
-- Each image is 400×300px RGBA with distinct color + label
-- Idempotent: safe to run multiple times (overwrites existing files)
+**Key fields:**
+- `params`: Scene parameters (spacing, background, camera settings)
+- `camera.position`: Camera location in 3D space
+- `settings`: Visual settings (material preset, viewpoint)
+- `images`: Base64-encoded image layers (back to front order)
 
-**Output Example**:
-```
-Created /path/to/test-img/layer1.png
-Created /path/to/test-img/layer2.png
-Created /path/to/test-img/layer3.png
+## Visual Regression Testing
 
-Test images created in /path/to/test-img/
-```
+Cross-renderer comparison thresholds:
+- **MAE < 35**: Average pixel difference under ~14% of 255
+- **pixel_match_ratio > 0.35**: At least 35% pixels within tolerance
 
-**File Details**:
-| File | Color | Dimensions | Label |
-|------|-------|------------|-------|
-| layer1.png | #FF6B6B (Red) | 400×300px | "Layer 1 - Red" |
-| layer2.png | #4ECDC4 (Cyan) | 400×300px | "Layer 2 - Cyan" |
-| layer3.png | #FFE66D (Yellow) | 400×300px | "Layer 3 - Yellow" |
+These thresholds account for shader implementation differences between pygfx and Three.js while catching significant regressions like missing layers or wrong geometry.
 
-### `vexy-stax-validate`
-
-**Purpose**: Validate PNG files exported from vexy-stax-js
-
-**Usage**:
-```bash
-vexy-stax-validate
-```
-
-**Behavior**:
-- Looks for PNG files in predefined paths (configurable in future versions)
-- Currently validates files in `img/` directory:
-  - `img/out-pc.png` (800×600px)
-  - `img/out-pm.png` (800×600px)
-  - `img/out-wl.png` (800×600px)
-  - `img/out-wt.png` (800×600px)
-- Checks each file for format, dimensions, and content
-- Prints validation results with ✓/✗ indicators
-- Returns exit code 0 (success) or 1 (failure)
-
-**Output Example**:
-```
-Validating output PNG files...
-
-✓ vexy-stax-pc: out-pc.png
-  Size: 800x600, Mode: RGBA, Size: 245678 bytes
-
-✓ vexy-stax-pm: out-pm.png
-  Size: 800x600, Mode: RGBA, Size: 198432 bytes
-
-✗ vexy-stax-wl: out-wl.png
-  Error: Width mismatch: expected 800px, got 1600px
-
-All output files are valid!
-```
-
-**Validation Criteria**:
-- File must exist at expected path
-- File must be PNG format (not JPEG/GIF/other)
-- Dimensions must match expected values (if specified)
-- Image must contain visible content (not blank/transparent)
-
----
-
-## Architecture
-
-### Package Structure
-
-```
-vexy-stax-py/
-├── src/
-│   └── vexy_stax/
-│       ├── __init__.py             # Package initialization
-│       ├── _version.py             # Auto-generated by hatch-vcs
-│       ├── create_test_images.py   # Test image generator
-│       └── validate_output.py      # PNG validator
-├── tests/
-│   └── test_validate_output.py     # Unit tests
-├── test-img/                       # Generated test images (gitignored)
-├── test.sh                         # Run all tests
-├── pyproject.toml                  # Package config + dependencies
-├── .github/workflows/
-│   ├── ci.yml                      # Run tests on push/PR
-│   └── release.yml                 # Publish to PyPI on tag
-└── README.md                       # This file
-```
-
-### Dependencies
-
-**Runtime** (`dependencies`):
-- **Pillow** (`>=11.0.0`): Image creation and validation
-  - Used for: PNG generation, format checking, dimension validation
-  - Why: Industry-standard Python imaging library, excellent PNG support
-
-**Build** (`build-system`):
-- **hatchling**: Modern Python build backend
-- **hatch-vcs**: Git-tag-based versioning (extracts version from git tags)
-
-**Testing** (`tool.hatch.envs.hatch-test`):
-- **pytest**: Unit testing framework
-- **pillow**: Required for test execution
-
-### Versioning Strategy
-
-**Git-Tag-Based Semver**:
 ```python
-# pyproject.toml
-[tool.hatch.version]
-source = "vcs"
+from vexy_stax.image_comparison import compare_images
 
-[tool.hatch.build.hooks.vcs]
-version-file = "src/vexy_stax/_version.py"
+result = compare_images("pygfx_render.png", "js_reference.png")
+print(result.summary())  # "PASS: MAE=28.50, match=46.2%, max_diff=180"
 ```
-
-**How It Works**:
-1. Version determined from git tags (e.g., `v0.1.0`)
-2. hatch-vcs generates `_version.py` during build
-3. `__init__.py` imports version from `_version.py`
-4. Falls back to `"0.0.0+unknown"` if not in git repo
-
-**Example**:
-```bash
-# Tag a new version
-git tag v0.1.0
-git push origin v0.1.0
-
-# Build package (version auto-extracted from tag)
-uv build
-# Creates dist/vexy_stax-0.1.0-py3-none-any.whl
-```
-
----
 
 ## Development
 
-### Prerequisites
+### Running tests
+```bash
+uvx ruff check --fix . && uvx ruff format . && uvx hatch test
+```
+
+### Module structure
+- `vexy_stax.cli` – Fire CLI commands
+- `vexy_stax.loader` – JSON scene parsing with pydantic
+- `vexy_stax.render_pipeline` – End-to-end pygfx rendering
+- `vexy_stax.renderer.*` – Canvas, camera, materials, export
+- `vexy_stax.gpu_doctor` – GPU diagnostics
+- `vexy_stax.image_comparison` – Visual regression utilities
+
+## Requirements
+
 - Python 3.12+
-- uv (recommended) or pip
+- GPU with Metal (macOS), Vulkan (Linux), or DirectX 12 (Windows)
+- FFmpeg for video export
 
-### Setup
+### Software Rendering Fallback (CI/Docker)
 
+When no GPU is available, wgpu can use CPU-based software rendering:
+
+**LLVMpipe (Linux/Mesa):**
 ```bash
-# Clone repository
-git clone https://github.com/vexyart/vexy-stax-py.git
-cd vexy-stax-py
+# Install Mesa with LLVMpipe
+sudo apt install mesa-vulkan-drivers
 
-# Install in editable mode with uv
-uv pip install -e .
-
-# Or with pip
-pip install -e .
+# Force software adapter
+export WGPU_ADAPTER_NAME="llvmpipe"
+uv run vexy-stax render scene.json output.png --backend=pygfx
 ```
 
-### Development Workflow
-
+**SwiftShader (Cross-platform):**
 ```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-uv sync
-
-# Run CLI commands
-vexy-stax-create-test
-vexy-stax-validate
-
-# Run tests
-pytest -v
-
-# Run tests with coverage
-pytest --cov=src/vexy_stax --cov-report=html
-
-# Type checking
-mypy src/
+# Set adapter name to SwiftShader
+export WGPU_ADAPTER_NAME="SwiftShader Device"
 ```
 
-### Code Organization
-
-**create_test_images.py** (52 lines):
-- `main()`: Entry point for CLI command
-  - Creates test-img/ directory
-  - Generates 3 colored PNG files with labels
-  - Uses Pillow for image creation and text rendering
-  - Handles font loading (Helvetica on macOS, fallback to default)
-
-**validate_output.py** (103 lines):
-- `validate_png(path, width, height)`: Core validation logic
-  - Returns `(is_valid: bool, error_message: str)` tuple
-  - Checks file existence, format, dimensions, content
-  - Used by both CLI and unit tests
-- `main()`: CLI entry point
-  - Validates multiple predefined PNG paths
-  - Prints formatted results with ✓/✗ indicators
-  - Returns exit code 0 (success) or 1 (failure)
-
-**test_validate_output.py** (68 lines):
-- 5 unit tests covering:
-  - Missing files
-  - Wrong format (JPEG instead of PNG)
-  - Correct dimensions
-  - Dimension mismatches
-  - Blank/transparent images
-- Uses pytest fixtures for temporary file creation
-- Helper function `_write_png()` for test image generation
-
----
-
-## Testing
-
-### Unit Tests
-
+**Verify adapter:**
 ```bash
-# Run all tests
-pytest -v
-
-# Run with coverage
-pytest --cov=src/vexy_stax
-
-# Run specific test
-pytest tests/test_validate_output.py::test_validate_png_when_dimensions_match_then_returns_true
+uv run vexy-stax doctor
+# Shows "llvmpipe (LLVM 15.0.6)" or similar for software rendering
 ```
 
-### Test Coverage
+Note: Software rendering is significantly slower than GPU but works in headless CI environments.
 
-Current test coverage:
-- `validate_png()`: 100% (all code paths tested)
-- `create_test_images.main()`: Manual testing (generates visual output)
-
-**Test Cases**:
-1. **File not found**: Returns error tuple
-2. **Wrong format**: Detects non-PNG files
-3. **Dimensions match**: Returns success
-4. **Dimensions mismatch**: Returns specific error
-5. **Blank image**: Detects all-black or all-transparent images
-
-### Manual Testing
-
-```bash
-# Generate test images
-vexy-stax-create-test
-
-# Verify images were created
-ls -lh test-img/
-# Should show layer1.png, layer2.png, layer3.png (all ~15-30KB)
-
-# Open images to verify visual appearance
-open test-img/layer1.png  # macOS
-xdg-open test-img/layer1.png  # Linux
-start test-img/layer1.png  # Windows
-
-# Run validation (will fail if img/ directory doesn't exist)
-vexy-stax-validate
-```
-
----
-
-## Versioning & Releases
-
-### Semantic Versioning
-
-This package uses **git-tag-based semantic versioning**:
-- Version stored in git tags (e.g., `v0.1.0`, `v1.2.3`)
-- Automatically extracted during build via `hatch-vcs`
-- No manual version bumping in code required
-
-**Version Format**: `MAJOR.MINOR.PATCH`
-- **MAJOR**: Breaking changes (CLI interface changes)
-- **MINOR**: New features (new commands, new validation checks)
-- **PATCH**: Bug fixes (validation logic improvements)
-
-### Release Process
-
-```bash
-# 1. Ensure all tests pass
-pytest -v
-
-# 2. Update CHANGELOG.md with release notes
-# (Document changes, fixes, new features)
-
-# 3. Commit changes
-git add .
-git commit -m "Prepare v0.1.0 release"
-
-# 4. Create and push git tag
-git tag v0.1.0
-git push origin main --tags
-
-# 5. GitHub Actions automatically:
-#    - Builds package
-#    - Publishes to PyPI
-#    - Creates GitHub Release
-```
-
-### GitHub Actions Workflows
-
-**CI (`ci.yml`)**: Runs on every push/PR
+**GitHub Actions example:**
 ```yaml
-- Install dependencies with uv
-- Run pytest with coverage
-- Validate package can be built
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mesa
+        run: sudo apt-get install -y mesa-vulkan-drivers
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Render with software fallback
+        env:
+          WGPU_ADAPTER_NAME: llvmpipe
+        run: |
+          uv run vexy-stax doctor  # Verify llvmpipe detected
+          uv run vexy-stax render scene.json output.png --backend=pygfx
 ```
 
-**Release (`release.yml`)**: Runs on git tag push (`v*`)
-```yaml
-- Extract version from git tag
-- Build package with uv
-- Publish to PyPI (requires PyPI token in secrets)
-- Create GitHub Release with artifacts
+### FFmpeg Installation
+
+Video export requires FFmpeg with H.264 support:
+
+**macOS:**
+```bash
+brew install ffmpeg
 ```
 
----
+**Ubuntu/Debian:**
+```bash
+sudo apt install ffmpeg
+```
 
-## Contributing
+**Windows:**
+Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
 
-This is a companion tool for vexy-stax-js. For bug reports or feature requests, please open an issue on GitHub.
-
-### Development Guidelines
-
-1. **Add tests** for new validation logic
-2. **Update CHANGELOG.md** with changes
-3. **Follow Python conventions**:
-   - Type hints for all functions
-   - Docstrings for public APIs
-   - PEP 8 style (enforced by ruff)
-4. **Keep dependencies minimal** (only Pillow for core functionality)
-
----
+**Verify installation:**
+```bash
+ffmpeg -version
+```
 
 ## License
-
-MIT License - See [LICENSE](LICENSE) file for details
-
----
-
-## Author
-
-**Adam Twardoch**
-[adam+pypi@twardoch.com](mailto:adam+pypi@twardoch.com)
-[https://twardoch.github.io/](https://twardoch.github.io/)
-
----
-
-## Related Projects
-
-- **[vexy-stax-js](https://github.com/vexyart/vexy-stax-js)**: Browser-based 3D image stacking visualizer (the main application)
-- Workflow: Python creates test images → Web app visualizes → Python validates exports
-
----
-
-## FAQ
-
-### Why Python instead of JavaScript for CLI tools?
-
-1. **Better for system tasks**: File validation, image generation, CI/CD integration
-2. **Cross-platform consistency**: Python ensures same behavior across all platforms
-3. **Ecosystem**: Pillow is the gold standard for image manipulation
-4. **Separation**: Keeps testing concerns separate from web app logic
-
-### Can I use these tools standalone?
-
-**Yes!** Both commands work independently:
-- `vexy-stax-create-test` generates images you can use anywhere
-- `vexy-stax-validate` can validate any PNG files (just update paths in code)
-
-### How do I customize validation paths?
-
-Currently, validation paths are hardcoded in `validate_output.py:68-73`. Future versions will support:
-```bash
-vexy-stax-validate --path img/output.png --width 800 --height 600
-```
-
-For now, modify the source code or use the `validate_png()` function directly in your scripts.
-
----
-
-**Built for automated testing and quality assurance workflows.**
+MIT

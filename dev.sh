@@ -1,6 +1,7 @@
 #!/bin/bash
 # this_file: vexy-stax-py/dev.sh
 # Development environment setup for vexy-stax-py
+cd "$(dirname "$0")"
 
 set -e  # Exit on error
 

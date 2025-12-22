@@ -8,9 +8,15 @@ Main exports:
 
 try:
     from ._version import __version__
-except ImportError:
+except ImportError:  # pragma: no cover - fallback for editable install
     __version__ = "0.0.0+unknown"
 
-from .browser import VexyStaxBrowser
-
 __all__ = ["VexyStaxBrowser", "__version__"]
+
+
+def __getattr__(name: str):
+    if name == "VexyStaxBrowser":
+        from .browser import VexyStaxBrowser as _VexyStaxBrowser
+
+        return _VexyStaxBrowser
+    raise AttributeError(name)
