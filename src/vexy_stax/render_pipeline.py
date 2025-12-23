@@ -282,21 +282,30 @@ def _build_scene(
         scene.add(background)
 
     # Interpolate lighting based on hero progress:
-    # At progress=0: ambient=0.6, directional=0.8 (dramatic 3D lighting)
-    # At progress=1: ambient=1.0, directional=0.0 (flat, composite-like)
-    ambient_intensity = 0.6 + 0.4 * hero_progress  # 0.6 → 1.0
-    directional_intensity = 0.8 * (1.0 - hero_progress)  # 0.8 → 0.0
+    # At progress=0: ambient=0.5, key=0.8, fill=0.3 (cinematic 3-point lighting)
+    # At progress=1: ambient=1.0, key=0.0, fill=0.0 (flat, composite-like)
+    ambient_intensity = 0.5 + 0.5 * hero_progress  # 0.5 → 1.0
+    key_intensity = 0.8 * (1.0 - hero_progress)  # 0.8 → 0.0
+    fill_intensity = 0.3 * (1.0 - hero_progress)  # 0.3 → 0.0
 
     ambient = gfx.AmbientLight(color=(1, 1, 1), intensity=ambient_intensity)
     scene.add(ambient)
 
-    # Only add directional light if it has meaningful intensity
-    if directional_intensity > 0.01:
-        directional = gfx.DirectionalLight(
-            color=(1, 1, 1), intensity=directional_intensity
+    # Key light: main light from upper-right-front (warm tint)
+    if key_intensity > 0.01:
+        key_light = gfx.DirectionalLight(
+            color=(1.0, 0.98, 0.95), intensity=key_intensity
         )
-        directional.local.position = (500, 500, 1000)
-        scene.add(directional)
+        key_light.local.position = (500, 400, 800)
+        scene.add(key_light)
+
+    # Fill light: softer light from opposite side (cool tint) for depth
+    if fill_intensity > 0.01:
+        fill_light = gfx.DirectionalLight(
+            color=(0.95, 0.97, 1.0), intensity=fill_intensity
+        )
+        fill_light.local.position = (-400, 200, 600)
+        scene.add(fill_light)
 
     return scene
 

@@ -344,7 +344,9 @@ def build_hero_timeline(
     """
     forward_frames = max(1, int(round(defaults.duration * defaults.fps)))
     hold_frames = max(0, int(round(defaults.hold * defaults.fps)))
-    return_frames = forward_frames if return_to_start else 0  # No return if flag is False
+    return_frames = (
+        forward_frames if return_to_start else 0
+    )  # No return if flag is False
 
     # Target is MIN_LAYER_GAP, but never greater than original spacing
     target_spacing = min(MIN_LAYER_GAP, spacing)
