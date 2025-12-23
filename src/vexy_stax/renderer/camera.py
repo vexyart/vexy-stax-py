@@ -81,10 +81,79 @@ def ease_power2_in_out(t: float) -> float:
     return 1 - 2 * ((1 - t) ** 2)
 
 
-def make_camera(scene: SceneConfig, aspect_ratio: float) -> Any:
-    """Instantiate a pygfx camera based on scene metadata."""
-    import math
+def calculate_beauty_viewpoint(
+    images: list[SceneImage],
+    z_spacing: float,
+    fov: float,
+    aspect_ratio: float,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Calculate cinematic beauty camera position and target.
 
+    Returns camera positioned at a 3/4 angle (upper-right-front) looking
+    down at the slide stack. This gives depth perception and fills the
+    frame cinematically.
+
+    Parameters
+    ----------
+    images:
+        Scene images
+    z_spacing:
+        Z-spacing between slides
+    fov:
+        Camera field of view in degrees
+    aspect_ratio:
+        Canvas aspect ratio (width/height)
+
+    Returns
+    -------
+    tuple[position, target]
+        Camera position and look-at target as (x, y, z) tuples
+    """
+    if not images:
+        return ((0, 0, 500), (0, 0, 0))
+
+    # Content dimensions
+    max_height = max(img.height for img in images)
+    max_width = max(img.width for img in images)
+    stack_depth = (len(images) - 1) * z_spacing
+
+    # Content center (target)
+    center_y = FLOOR_Y + max_height / 2
+    center_z = stack_depth / 2
+    target = (0.0, center_y, center_z)
+
+    # Camera distance to fit content with padding
+    fov_rad = math.radians(fov)
+    half_tan = math.tan(fov_rad / 2)
+
+    # Need to fit: width, height, and diagonal depth
+    # Use diagonal viewing requires more distance
+    diagonal = math.sqrt(max_width**2 + max_height**2 + stack_depth**2)
+    fit_distance = (diagonal / 2) / half_tan
+
+    # Apply correction factor for pygfx + cinematic fill (0.85 fills frame nicely)
+    BEAUTY_FILL = 0.85  # Tighter framing for cinematic look
+    fit_distance *= 1.25 * BEAUTY_FILL  # 1.25 is pygfx correction
+
+    # Position camera at 3/4 angle: 30° from center horizontally, 20° up
+    # This gives a dramatic, magazine-style hero shot
+    angle_h = math.radians(25)  # Horizontal offset angle
+    angle_v = math.radians(15)  # Vertical offset angle (looking down)
+
+    cam_x = fit_distance * math.sin(angle_h)  # Offset to the right
+    cam_y = center_y + fit_distance * math.sin(angle_v)  # Above center
+    cam_z = center_z + fit_distance * math.cos(angle_h)  # Front and to the right
+
+    position = (cam_x, cam_y, cam_z)
+    return (position, target)
+
+
+def make_camera(scene: SceneConfig, aspect_ratio: float) -> Any:
+    """Instantiate a pygfx camera based on scene metadata.
+
+    For video rendering, always computes a cinematic beauty camera position
+    rather than using potentially poorly-framed saved camera positions.
+    """
     mode = scene.params.camera_mode
     if mode == "orthographic":
         width = (scene.images[0].width if scene.images else 1) * DEFAULT_PADDING
@@ -95,32 +164,14 @@ def make_camera(scene: SceneConfig, aspect_ratio: float) -> Any:
         fov = scene.params.camera_fov or (30.0 if mode == "telephoto" else 75.0)
         camera = gfx.PerspectiveCamera(fov=fov, aspect=aspect_ratio)
 
-    # Calculate content center for camera target
-    content_center = calculate_content_center_with_spacing(
-        scene.images, scene.params.z_spacing
+    # Calculate optimized beauty viewpoint (ignore saved camera for better framing)
+    fov = scene.params.camera_fov or 75.0
+    position, target = calculate_beauty_viewpoint(
+        scene.images, scene.params.z_spacing, fov, aspect_ratio
     )
 
-    if scene.camera is not None:
-        camera.world.position = (scene.camera.x, scene.camera.y, scene.camera.z)
-    else:
-        # Calculate camera distance to fit largest image in view
-        max_height = max((img.height for img in scene.images), default=1)
-        max_width = max((img.width for img in scene.images), default=1)
-
-        # Use whichever dimension requires more distance
-        fov_rad = math.radians(fov if mode != "orthographic" else 75.0)
-        dist_for_height = (max_height / 2) / math.tan(fov_rad / 2)
-        dist_for_width = (max_width / 2) / (aspect_ratio * math.tan(fov_rad / 2))
-        fit_distance = max(dist_for_height, dist_for_width)
-
-        # Add stack depth and padding
-        stack_depth = len(scene.images) * scene.params.z_spacing
-        camera_z = fit_distance * DEFAULT_PADDING + stack_depth
-
-        camera.world.position = (content_center[0], content_center[1], camera_z)
-
-    # Look at content center (not origin) for proper framing
-    camera.look_at(content_center)
+    camera.world.position = position
+    camera.look_at(target)
     return camera
 
 
@@ -216,8 +267,12 @@ def calculate_front_viewpoint(
     distance_for_height = (height / 2) / half_vertical_tan
     distance_for_width = (width / 2) / half_horizontal_tan
 
-    # Use whichever requires more distance (strict fit, padding = 1.0)
+    # Use whichever requires more distance. pygfx renders ~17% larger than
+    # theoretical calculations, so we need ~1.25x to achieve true content-fit
+    # with safety margin. This ensures no cropping (small margins are acceptable).
+    CONTENT_FIT_PADDING = 1.25
     distance = max(distance_for_height, distance_for_width, CAMERA_MIN_DISTANCE)
+    distance *= CONTENT_FIT_PADDING
 
     # Camera directly in front of collapsed stack, at same Y as target
     position = CameraPosition(x=0.0, y=target_y, z=collapse_z + distance)

@@ -67,14 +67,20 @@ def test_make_camera_when_orthographic_then_respects_image_size() -> None:
     assert camera.height > 0
 
 
-def test_make_camera_when_scene_has_camera_then_position_used() -> None:
+def test_make_camera_when_scene_has_camera_then_beauty_viewpoint_computed() -> None:
+    """make_camera now always computes cinematic beauty viewpoint.
+
+    Saved camera positions from JS may be poorly framed, so we compute an
+    optimal beauty position based on content dimensions and spacing.
+    """
     camera = SceneCamera(x=1.0, y=2.0, z=3.0)
     scene = _scene_config(camera_mode="perspective", camera=camera)
     result = make_camera(scene, aspect_ratio=1.0)
 
-    assert result.world.position[0] == pytest.approx(1.0)
-    assert result.world.position[1] == pytest.approx(2.0)
-    assert result.world.position[2] == pytest.approx(3.0)
+    # Camera should be positioned at computed beauty viewpoint, not saved position
+    # Position will be offset from center for 3/4 angle view
+    assert result.world.position[0] != pytest.approx(1.0)  # Not using saved X
+    assert result.world.position[2] > 0  # Camera should be in front of content
 
 
 def test_ease_power2_in_out_when_midpoint_then_returns_smooth_value() -> None:

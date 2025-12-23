@@ -241,15 +241,10 @@ def _build_scene(
         so the render matches a simple 2D composite of all slides.
     """
 
-    # Get material preset from settings (default to glossy like JS)
-    base_material_preset = "glossy"
-    if config.settings is not None:
-        base_material_preset = config.settings.material
-
-    # At hero shot culmination (progress >= 0.95), use basic (unlit) material
-    # to match flat composite appearance
-    use_basic = hero_progress >= 0.95
-    material_preset = "basic" if use_basic else base_material_preset
+    # Use "basic" (unlit) material to preserve original image appearance.
+    # The source images already have good lighting baked in; 3D effect comes
+    # from perspective and parallax, not artificial lighting.
+    material_preset = "basic"
 
     def geometry_factory(image: Any) -> Any:
         return gfx.plane_geometry(width=image.width, height=image.height)
@@ -281,31 +276,11 @@ def _build_scene(
         background = gfx.Background(None, gfx.BackgroundMaterial(bg_color))
         scene.add(background)
 
-    # Interpolate lighting based on hero progress:
-    # At progress=0: ambient=0.5, key=0.8, fill=0.3 (cinematic 3-point lighting)
-    # At progress=1: ambient=1.0, key=0.0, fill=0.0 (flat, composite-like)
-    ambient_intensity = 0.5 + 0.5 * hero_progress  # 0.5 → 1.0
-    key_intensity = 0.8 * (1.0 - hero_progress)  # 0.8 → 0.0
-    fill_intensity = 0.3 * (1.0 - hero_progress)  # 0.3 → 0.0
-
-    ambient = gfx.AmbientLight(color=(1, 1, 1), intensity=ambient_intensity)
+    # Using unlit material, so lighting is minimal (just for any non-textured elements)
+    # The _ prefix indicates hero_progress is unused but kept for API compatibility
+    _ = hero_progress
+    ambient = gfx.AmbientLight(color=(1, 1, 1), intensity=1.0)
     scene.add(ambient)
-
-    # Key light: main light from upper-right-front (warm tint)
-    if key_intensity > 0.01:
-        key_light = gfx.DirectionalLight(
-            color=(1.0, 0.98, 0.95), intensity=key_intensity
-        )
-        key_light.local.position = (500, 400, 800)
-        scene.add(key_light)
-
-    # Fill light: softer light from opposite side (cool tint) for depth
-    if fill_intensity > 0.01:
-        fill_light = gfx.DirectionalLight(
-            color=(0.95, 0.97, 1.0), intensity=fill_intensity
-        )
-        fill_light.local.position = (-400, 200, 600)
-        scene.add(fill_light)
 
     return scene
 
