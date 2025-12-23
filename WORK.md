@@ -12,18 +12,24 @@ this_file: WORK.md
 
 ## Session 2025-12-23
 
-### Cinematic 3-Point Lighting
+### Cinematic Beauty View & Unlit Materials
 
-**Goal**: Improve beauty view photorealism per CONTINUE.md.
+**Goal**: Improve beauty view per CONTINUE.md - fill scene cinematically, proper framing.
 
-**Change**: Upgraded from single directional light to 3-point lighting setup:
-- Key light (warm 1.0/0.98/0.95) from upper-right at intensity 0.8
-- Fill light (cool 0.95/0.97/1.0) from left at intensity 0.3
-- Ambient reduced from 0.6 to 0.5 for better contrast
+**Changes**:
+1. **Beauty camera viewpoint**: Added `calculate_beauty_viewpoint()` function
+   - Positions camera at 3/4 angle (25° horizontal, 15° vertical offset)
+   - Automatically fills frame with cinematic composition
+   - Ignores poorly-framed saved camera positions from JS
 
-All lights interpolate to zero at hero culmination, preserving flat composite appearance.
+2. **Unlit material**: Switched to "basic" (MeshBasicMaterial) for all frames
+   - Source images already have baked-in lighting
+   - 3D effect comes from perspective/parallax, not artificial lighting
+   - Eliminates dark beauty view issue with lit materials at oblique angles
 
-**Result**: Better depth perception and cinematic quality in beauty view while hero view remains unchanged.
+3. **Simplified lighting**: Single ambient light at full intensity
+   - Unlit material doesn't respond to directional lights
+   - Removes complex lighting interpolation code
 
 ### Hero View Content-Fit Fix
 
@@ -38,6 +44,17 @@ All lights interpolate to zero at hero culmination, preserving flat composite ap
 4. `_render_animation_frames`: Uses timeline camera_targets instead of recalculating content_center per frame
 
 **Result**: Hero view now perfectly content-fits the front slide (verified with 1920x1080 test scene).
+
+### pygfx FOV Correction Factor
+
+**Discovery**: pygfx renders content ~17% larger than theoretical FOV calculations predict.
+
+**Testing**: Binary search found actual "exact fit" multiplier is 1.17x, not 1.0x.
+
+**Fix**: Added `CONTENT_FIT_PADDING = 1.25` (1.17 * 1.07 safety margin) to ensure:
+- No cropping of slide content
+- Small margins acceptable per CONTINUE.md requirements
+- Works regardless of slide/canvas aspect ratio match
 
 ### Demo Script Fix
 
