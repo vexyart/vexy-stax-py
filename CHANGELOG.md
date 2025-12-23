@@ -6,7 +6,15 @@ this_file: CHANGELOG.md
 
 All notable changes to vexy-stax project will be documented in this file.
 
-## [Unreleased] - 2025-12-22
+## [Unreleased] - 2025-12-23
+
+### 2025-12-23 - Visual Quality Verification Complete
+- **Beauty view**: Cinematic 3/4 angle fills frame, 3D stack with depth perspective visible
+- **Hero view**: Front slide content-fits viewport perfectly with minimal margins
+- **Coordinate system**: PLAN.md §1 compliant (final slide at Z=0, others at negative Z)
+- **Materials**: Basic (unlit) material preserves original image lighting
+- **Tests**: 115 pass, 4 skip (up from 113)
+- **Verification**: demopy.sh renders 1920×1080 video (75 frames) with correct beauty/hero views
 
 ### 2025-12-22 - Camera Targeting Fix
 - **Content-centered camera**: Camera now looks at content center instead of origin (0,0,0)
