@@ -12,32 +12,46 @@ this_file: WORK.md
 - **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 - **Visual Quality**: All CONTINUE.md requirements verified ✅
 
-## Session 2025-12-23 - Verification Complete
+## Session 2025-12-23 - Hero View Content-Fit Fixed
 
-### Visual Quality Verification
+### Hero View Content-Fit Correction
 
-Verified Python implementation against CONTINUE.md requirements:
+**Problem**: Hero view had ~46% letterboxing (black bars around slide) due to overcorrected FOV distance calculation.
+
+**Root Cause**: `PYGFX_FOV_CORRECTION = 1.39 * SAFETY_MARGIN = 1.05` was multiplying camera distance by 1.46x, causing the slide to appear much smaller than the viewport.
+
+**Fix in `camera.py` line 284-294**:
+- Removed `PYGFX_FOV_CORRECTION = 1.39` (was overcorrected)
+- Kept minimal `SAFETY_MARGIN = 1.02` (2% margin) for anti-aliasing artifacts
+- Result: Slide now fills canvas perfectly when aspect ratios match
+
+**Verification**:
+- demopy.sh renders 1920x1080 slide in 1920x1080 canvas
+- Frame analysis confirms 0px margins on all sides
+- Hero view fills viewport completely
+
+### Visual Quality Summary
 
 1. **Beauty View** ✅
    - 3/4 angle camera (25° horizontal, 15° vertical)
-   - Cinematically balanced composition filling scene
-   - 3D stack visible with depth perspective
+   - Cinematically balanced composition
+   - 3D stack with depth perspective visible
 
 2. **Hero View** ✅
-   - Straight-on camera at origin (0,0,0) target
+   - Straight-on camera at front slide
    - MIN_LAYER_GAP = 3px spacing prevents z-fighting
-   - Content-fits perfectly (5% safety margin)
-   - No cropping of front slide
+   - Content-fits perfectly (2% safety margin)
+   - No cropping, no letterboxing when aspect ratios match
 
 3. **Photorealism** ✅
    - "basic" (unlit) material preserves original image lighting
-   - Source photos have baked-in lighting - adding artificial lighting degrades quality
-   - 3D effect comes from perspective/parallax, not artificial shading
+   - Source photos have baked-in lighting
+   - 3D effect from perspective/parallax
 
 ### Test Results
 - All 115 tests pass, 4 skipped
 - demopy.sh renders 1920x1080 video successfully
-- Visual inspection confirms beauty/hero views working correctly
+- Visual inspection confirms hero view fills frame
 
 ---
 

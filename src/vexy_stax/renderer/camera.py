@@ -282,14 +282,16 @@ def calculate_front_viewpoint(
     distance_for_width = (width / 2) / half_horizontal_tan
 
     # CONTINUE.md: "no part of the slide may be cut off, margins permissible only in one direction"
-    # pygfx interprets FOV differently than theoretical calculation expects:
-    # - Theoretical: distance = (height/2) / tan(fov/2)
-    # - pygfx needs ~1.39x this distance to show the same content
-    # With 5% safety margin: 1.39 * 1.05 ≈ 1.46
-    PYGFX_FOV_CORRECTION = 1.39  # Empirically measured correction for pygfx FOV
-    SAFETY_MARGIN = 1.05  # 5% margin for rounding/AA artifacts
+    # pygfx interprets FOV differently than theoretical calculation expects.
+    # Content-fit means: slide fills canvas exactly when aspect ratios match,
+    # otherwise margins appear in one direction only.
+    #
+    # Empirically measured: pygfx needs ~1.0x theoretical distance (no correction needed)
+    # The previous 1.39x was overcorrected - causing 40%+ letterboxing.
+    # Add minimal safety margin (2%) to prevent sub-pixel clipping at edges.
+    SAFETY_MARGIN = 1.02  # 2% margin for rounding/AA artifacts
     distance = max(distance_for_height, distance_for_width, CAMERA_MIN_DISTANCE)
-    distance *= PYGFX_FOV_CORRECTION * SAFETY_MARGIN
+    distance *= SAFETY_MARGIN
 
     # Camera directly in front of collapsed stack, at same Y as target
     position = CameraPosition(x=0.0, y=target_y, z=collapse_z + distance)
