@@ -11,6 +11,35 @@ this_file: WORK.md
 - **GPU flags**: `--require-gpu` rejects software rendering
 - **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 
+## Session 2025-12-23 - Verification Complete
+
+### Visual Quality Verification
+
+Verified Python implementation against CONTINUE.md requirements:
+
+1. **Beauty View** ✅
+   - 3/4 angle camera (25° horizontal, 15° vertical)
+   - Cinematically balanced composition filling scene
+   - 3D stack visible with depth perspective
+
+2. **Hero View** ✅
+   - Straight-on camera at origin (0,0,0) target
+   - MIN_LAYER_GAP = 3px spacing prevents z-fighting
+   - Content-fits perfectly (5% safety margin)
+   - No cropping of front slide
+
+3. **Photorealism** ✅
+   - "basic" (unlit) material preserves original image lighting
+   - Source photos have baked-in lighting - adding artificial lighting degrades quality
+   - 3D effect comes from perspective/parallax, not artificial shading
+
+### Test Results
+- All 115 tests pass, 4 skipped
+- demopy.sh renders 1920x1080 video successfully
+- Visual inspection confirms beauty/hero views working correctly
+
+---
+
 ## Session 2025-12-23 (Continued)
 
 ### Coordinate System Alignment with JS (PLAN.md §1)
