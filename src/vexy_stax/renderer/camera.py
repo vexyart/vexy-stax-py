@@ -91,9 +91,9 @@ def calculate_beauty_viewpoint(
 ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     """Calculate cinematic beauty camera position and target.
 
-    PLAN.md §1: Final slide at Z=0, other slides at negative Z.
-    Camera positioned at a 3/4 angle (upper-right-front) looking
-    at the slide stack center.
+    PLAN.md Beauty View: Camera must fit the entire FLOOR within the viewport,
+    not just center on the slides. Camera is positioned to show the 3D stack
+    from a 3/4 angle with the floor visible.
 
     Parameters
     ----------
@@ -119,33 +119,37 @@ def calculate_beauty_viewpoint(
     max_width = max(img.width for img in images)
     stack_depth = (len(images) - 1) * z_spacing
 
-    # Content center (target)
-    # PLAN.md §1: Stack spans from -stack_depth to 0
-    center_y = FLOOR_Y + max_height / 2
-    center_z = -stack_depth / 2  # Center of negative-Z stack
-    target = (0.0, center_y, center_z)
+    # Floor geometry (PLAN.md Floor Sizing Rules)
+    floor_width = max_width + 0.4 * z_spacing
+    floor_length = stack_depth + 0.4 * z_spacing  # 0.2 padding each end
 
-    # Camera distance to fit content with padding
+    # Floor center is at Y=0 (floor plane), Z = center of stack depth
+    floor_center_z = -stack_depth / 2
+    target = (0.0, 0.0, floor_center_z)  # Target floor center
+
+    # Camera distance to fit floor diagonal in FOV
+    floor_diagonal = math.sqrt(floor_width**2 + floor_length**2)
     fov_rad = math.radians(fov)
     half_tan = math.tan(fov_rad / 2)
 
-    # Need to fit: width, height, and diagonal depth
-    diagonal = math.sqrt(max_width**2 + max_height**2 + stack_depth**2)
-    fit_distance = (diagonal / 2) / half_tan
+    # Distance to fit floor with margin
+    # pygfx interprets FOV differently - needs 1.39x theoretical distance
+    PYGFX_FOV_CORRECTION = 1.39  # Empirically measured correction for pygfx FOV
+    BEAUTY_FILL = 0.85  # 15% margin around floor for cinematic framing
+    fit_distance = (floor_diagonal / 2) / half_tan * PYGFX_FOV_CORRECTION * (1.0 / BEAUTY_FILL)
 
-    # Apply correction factor for pygfx + cinematic fill
-    # CONTINUE.md: beauty view should "fill the scene cinematically"
-    BEAUTY_FILL = 0.75  # Tighter framing for dramatic cinematic look
-    fit_distance *= BEAUTY_FILL  # No extra pygfx correction needed for oblique views
+    # Camera direction: left, above, in front (normalized)
+    # X: -0.6 = to the left
+    # Y: +0.5 = above floor (camera looks down)
+    # Z: +0.6 = in front of floor center
+    dir_x, dir_y, dir_z = -0.6, 0.5, 0.6
+    norm = math.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
+    dir_x, dir_y, dir_z = dir_x / norm, dir_y / norm, dir_z / norm
 
-    # Position camera at 3/4 angle: 25° horizontal, 15° up
-    # Camera is in front of the stack (positive Z) looking toward negative Z
-    angle_h = math.radians(25)  # Horizontal offset angle
-    angle_v = math.radians(15)  # Vertical offset angle (looking down)
-
-    cam_x = fit_distance * math.sin(angle_h)  # Offset to the right
-    cam_y = center_y + fit_distance * math.sin(angle_v)  # Above center
-    cam_z = center_z + fit_distance * math.cos(angle_h)  # In front (positive Z from center)
+    # Camera position = floor_center + direction * distance
+    cam_x = 0.0 + dir_x * fit_distance
+    cam_y = 0.0 + dir_y * fit_distance
+    cam_z = floor_center_z + dir_z * fit_distance
 
     position = (cam_x, cam_y, cam_z)
     return (position, target)
@@ -278,12 +282,14 @@ def calculate_front_viewpoint(
     distance_for_width = (width / 2) / half_horizontal_tan
 
     # CONTINUE.md: "no part of the slide may be cut off, margins permissible only in one direction"
-    # With matching aspect ratios, use minimal padding. The limiting dimension
-    # determines margin direction (letterbox if height-limited, pillarbox if width-limited).
-    # Testing shows 1.05x provides safe margin without excessive letterboxing.
-    CONTENT_FIT_PADDING = 1.05  # 5% safety margin for rounding/AA artifacts
+    # pygfx interprets FOV differently than theoretical calculation expects:
+    # - Theoretical: distance = (height/2) / tan(fov/2)
+    # - pygfx needs ~1.39x this distance to show the same content
+    # With 5% safety margin: 1.39 * 1.05 ≈ 1.46
+    PYGFX_FOV_CORRECTION = 1.39  # Empirically measured correction for pygfx FOV
+    SAFETY_MARGIN = 1.05  # 5% margin for rounding/AA artifacts
     distance = max(distance_for_height, distance_for_width, CAMERA_MIN_DISTANCE)
-    distance *= CONTENT_FIT_PADDING
+    distance *= PYGFX_FOV_CORRECTION * SAFETY_MARGIN
 
     # Camera directly in front of collapsed stack, at same Y as target
     position = CameraPosition(x=0.0, y=target_y, z=collapse_z + distance)
