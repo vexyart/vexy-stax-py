@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -224,6 +225,48 @@ def _hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
     return (r, g, b)
 
 
+def _create_floor(config: SceneConfig, opacity: float) -> Any:
+    """Create floor plane mesh according to PLAN.md Floor Sizing Rules.
+
+    Floor dimensions:
+    - Width = widest_slide + 0.4 * z_spacing
+    - Length = stack_depth + 0.4 * z_spacing
+    - Position: Y = FLOOR_Y - 3 (3px below slides), Z = -stack_depth / 2
+    """
+    if not config.images:
+        return None
+
+    z_spacing = config.params.z_spacing
+    max_width = max(img.width for img in config.images)
+    stack_depth = (len(config.images) - 1) * z_spacing
+
+    # PLAN.md §2: Floor dimensions
+    floor_width = max_width + 0.4 * z_spacing
+    floor_length = max(stack_depth + 0.4 * z_spacing, floor_width)  # At least square
+
+    # Create floor geometry (horizontal plane)
+    geometry = gfx.plane_geometry(width=floor_width, height=floor_length)
+
+    # Floor material: semi-transparent gray
+    # Using basic material for consistent appearance with unlit slides
+    floor_color = (0.925, 0.925, 0.925)  # #ececec in RGB normalized
+    material = gfx.MeshBasicMaterial(
+        color=floor_color,
+        opacity=opacity,
+        alpha_mode="blend",  # Enable transparency blending
+    )
+
+    floor_mesh = gfx.Mesh(geometry, material)
+
+    # Rotate to horizontal (XZ plane) and position
+    # pygfx plane_geometry creates an XY plane with normal +Z
+    # Rotate -90° around X to lay flat with normal pointing UP (+Y)
+    floor_mesh.local.euler = (-math.pi / 2, 0, 0)
+    floor_mesh.local.position = (0, FLOOR_Y - 3, -stack_depth / 2)
+
+    return floor_mesh
+
+
 def _build_scene(
     config: SceneConfig, textures: list[Any], *, hero_progress: float = 0.0
 ) -> Any:
@@ -281,6 +324,12 @@ def _build_scene(
         bg_color = _hex_to_rgb(config.params.bg_color)
         background = gfx.Background(None, gfx.BackgroundMaterial(bg_color))
         scene.add(background)
+
+    # Add floor plane (PLAN.md Floor Sizing Rules)
+    floor_opacity = config.settings.floor_opacity if config.settings else 0.05
+    if floor_opacity > 0 and config.images:
+        floor_mesh = _create_floor(config, floor_opacity)
+        scene.add(floor_mesh)
 
     # Using unlit material, so lighting is minimal (just for any non-textured elements)
     # The _ prefix indicates hero_progress is unused but kept for API compatibility
