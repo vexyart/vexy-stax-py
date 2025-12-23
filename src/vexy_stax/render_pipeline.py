@@ -256,9 +256,15 @@ def _build_scene(
         return gfx.Mesh(geometry, material)
 
     def placement_hook(mesh: Any, image: Any, index: int, z_spacing: float) -> None:
+        # PLAN.md §1: Final slide at Z=0 (immovable anchor)
+        # Formula: z = -(slideCount - 1 - index) * z_spacing
+        # This places: index 0 at most negative Z, final index at Z=0
+        slide_count = len(config.images)
+        offset = (slide_count - 1 - index) * z_spacing
+        z_position = -offset if offset != 0 else 0
         # Y = height/2 so bottom of slide sits on floor (Y=0)
         y_position = FLOOR_Y + image.height / 2
-        mesh.local.position = (0, y_position, index * z_spacing)
+        mesh.local.position = (0, y_position, z_position)
 
     deps = SceneBuilderDependencies(
         scene_factory=gfx.Scene,

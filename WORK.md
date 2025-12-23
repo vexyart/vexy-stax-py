@@ -9,8 +9,39 @@ this_file: WORK.md
 - **Tests**: 115 pass, 4 skip
 - **Default**: pygfx backend (playwright optional via `[browser]`)
 - **GPU flags**: `--require-gpu` rejects software rendering
+- **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 
-## Session 2025-12-23
+## Session 2025-12-23 (Continued)
+
+### Coordinate System Alignment with JS (PLAN.md §1)
+
+**Goal**: Align Python coordinate system with JS implementation per PLAN.md §1.
+
+**Changes**:
+1. **`render_pipeline.py` placement_hook**:
+   - Changed from `z = index * z_spacing` to `z = -(slideCount - 1 - index) * z_spacing`
+   - Final slide (highest index) now at Z=0 (immovable anchor)
+   - Other slides at negative Z
+
+2. **`camera.py` calculate_content_center**:
+   - Stack center now at `-stack_depth / 2` (center of negative-Z stack)
+
+3. **`camera.py` calculate_content_center_with_spacing**:
+   - Same fix: center_z = `-stack_depth / 2`
+
+4. **`camera.py` calculate_front_viewpoint**:
+   - collapse_z now always 0.0 (front slide is final slide at Z=0)
+   - Updated docstring to document PLAN.md §1 compliance
+
+**Result**: Python and JS now share identical coordinate system:
+- Final slide at Z=0 (immovable anchor)
+- Other slides at negative Z: `z = -(slideCount - 1 - index) * effectiveSpacing`
+- Hero mode collapses toward Z=0 with MIN_LAYER_GAP spacing
+- Verified with demopy.sh: beauty/hero/final frames look correct
+
+---
+
+## Previous Session 2025-12-23
 
 ### Cinematic Beauty View & Unlit Materials
 

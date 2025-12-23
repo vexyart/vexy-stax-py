@@ -19,6 +19,7 @@ CAMERA_MIN_DISTANCE = 100.0
 def calculate_content_center(images: list[SceneImage]) -> tuple[float, float, float]:
     """Calculate the center point of all images in the scene.
 
+    PLAN.md §1: Final slide at Z=0 (immovable anchor), other slides at negative Z.
     Slides sit on floor (Y=0), so their center Y is height/2.
     Returns the center of the bounding box containing all slides.
 
@@ -43,10 +44,11 @@ def calculate_content_center(images: list[SceneImage]) -> tuple[float, float, fl
     center_y = FLOOR_Y + max_height / 2
 
     # X is always 0 (slides are centered horizontally)
-    # Z is the middle of the stack
+    # Z: PLAN.md §1 - final slide at Z=0, others at negative Z
+    # Stack spans from -stack_depth to 0, center is at -stack_depth/2
     z_spacing = 100.0  # default if not provided
-    stack_depth = len(images) * z_spacing
-    center_z = stack_depth / 2
+    stack_depth = (len(images) - 1) * z_spacing
+    center_z = -stack_depth / 2
 
     return (0.0, center_y, center_z)
 
@@ -89,9 +91,9 @@ def calculate_beauty_viewpoint(
 ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     """Calculate cinematic beauty camera position and target.
 
-    Returns camera positioned at a 3/4 angle (upper-right-front) looking
-    down at the slide stack. This gives depth perception and fills the
-    frame cinematically.
+    PLAN.md §1: Final slide at Z=0, other slides at negative Z.
+    Camera positioned at a 3/4 angle (upper-right-front) looking
+    at the slide stack center.
 
     Parameters
     ----------
@@ -118,8 +120,9 @@ def calculate_beauty_viewpoint(
     stack_depth = (len(images) - 1) * z_spacing
 
     # Content center (target)
+    # PLAN.md §1: Stack spans from -stack_depth to 0
     center_y = FLOOR_Y + max_height / 2
-    center_z = stack_depth / 2
+    center_z = -stack_depth / 2  # Center of negative-Z stack
     target = (0.0, center_y, center_z)
 
     # Camera distance to fit content with padding
@@ -127,7 +130,6 @@ def calculate_beauty_viewpoint(
     half_tan = math.tan(fov_rad / 2)
 
     # Need to fit: width, height, and diagonal depth
-    # Use diagonal viewing requires more distance
     diagonal = math.sqrt(max_width**2 + max_height**2 + stack_depth**2)
     fit_distance = (diagonal / 2) / half_tan
 
@@ -135,14 +137,14 @@ def calculate_beauty_viewpoint(
     BEAUTY_FILL = 0.85  # Tighter framing for cinematic look
     fit_distance *= 1.25 * BEAUTY_FILL  # 1.25 is pygfx correction
 
-    # Position camera at 3/4 angle: 30° from center horizontally, 20° up
-    # This gives a dramatic, magazine-style hero shot
+    # Position camera at 3/4 angle: 25° horizontal, 15° up
+    # Camera is in front of the stack (positive Z) looking toward negative Z
     angle_h = math.radians(25)  # Horizontal offset angle
     angle_v = math.radians(15)  # Vertical offset angle (looking down)
 
     cam_x = fit_distance * math.sin(angle_h)  # Offset to the right
     cam_y = center_y + fit_distance * math.sin(angle_v)  # Above center
-    cam_z = center_z + fit_distance * math.cos(angle_h)  # Front and to the right
+    cam_z = center_z + fit_distance * math.cos(angle_h)  # In front (positive Z from center)
 
     position = (cam_x, cam_y, cam_z)
     return (position, target)
@@ -180,6 +182,9 @@ def calculate_content_center_with_spacing(
 ) -> tuple[float, float, float]:
     """Calculate the center point of all images using actual z_spacing.
 
+    PLAN.md §1: Final slide at Z=0 (immovable anchor), other slides at negative Z.
+    Stack spans from -stack_depth to 0, center is at -stack_depth/2.
+
     Parameters
     ----------
     images:
@@ -201,9 +206,10 @@ def calculate_content_center_with_spacing(
     # Center Y is at the vertical middle of the tallest slide
     center_y = FLOOR_Y + max_height / 2
 
-    # Z is the middle of the stack
+    # Z: PLAN.md §1 - final slide at Z=0, others at negative Z
+    # Stack spans from -stack_depth to 0, center is at -stack_depth/2
     stack_depth = (len(images) - 1) * z_spacing
-    center_z = stack_depth / 2
+    center_z = -stack_depth / 2
 
     return (0.0, center_y, center_z)
 
@@ -218,16 +224,17 @@ def calculate_front_viewpoint(
 ) -> FrontViewpoint:
     """Calculate camera position to fit front slide exactly to canvas.
 
-    Mirrors the JS calculateFrontViewpoint() logic:
-    - Slides collapse to MIN_LAYER_GAP spacing during hero shot
-    - Camera positioned directly in front of the front slide
+    PLAN.md §1: Final slide at Z=0 (immovable anchor). During hero shot:
+    - Final slide stays at Z=0
+    - Other slides collapse to: z = -(slideCount - 1 - index) * MIN_LAYER_GAP
+    - Camera positioned directly in front of the front slide (at Z=0)
     - Distance computed so larger dimension fills canvas exactly
     - Target Y is at slide center (height/2 above floor)
 
     Parameters
     ----------
     front_slide:
-        The frontmost slide to fit
+        The frontmost slide to fit (the final slide at Z=0)
     canvas_width:
         Canvas width in pixels
     canvas_height:
@@ -235,15 +242,17 @@ def calculate_front_viewpoint(
     fov:
         Camera field of view in degrees
     front_slide_index:
-        Index of the front slide (for Z position calculation)
+        Index of the front slide (should be slideCount - 1)
 
     Returns
     -------
     FrontViewpoint
         Camera position, target, and collapse Z
     """
-    # Front slide Z position after collapse (each slide at index * MIN_LAYER_GAP)
-    collapse_z = front_slide_index * MIN_LAYER_GAP
+    # PLAN.md §1: Final slide is always at Z=0 (immovable anchor)
+    # The front_slide_index parameter is kept for API compatibility but
+    # collapse_z is always 0 since the front slide is always the final slide at Z=0
+    collapse_z = 0.0
 
     # Get slide dimensions
     width = front_slide.width or 1
@@ -267,10 +276,11 @@ def calculate_front_viewpoint(
     distance_for_height = (height / 2) / half_vertical_tan
     distance_for_width = (width / 2) / half_horizontal_tan
 
-    # Use whichever requires more distance. pygfx renders ~17% larger than
-    # theoretical calculations, so we need ~1.25x to achieve true content-fit
-    # with safety margin. This ensures no cropping (small margins are acceptable).
-    CONTENT_FIT_PADDING = 1.25
+    # CONTINUE.md: "no part of the slide may be cut off, margins permissible only in one direction"
+    # With matching aspect ratios, use minimal padding. The limiting dimension
+    # determines margin direction (letterbox if height-limited, pillarbox if width-limited).
+    # Testing shows 1.05x provides safe margin without excessive letterboxing.
+    CONTENT_FIT_PADDING = 1.05  # 5% safety margin for rounding/AA artifacts
     distance = max(distance_for_height, distance_for_width, CAMERA_MIN_DISTANCE)
     distance *= CONTENT_FIT_PADDING
 
