@@ -133,9 +133,10 @@ def calculate_beauty_viewpoint(
     diagonal = math.sqrt(max_width**2 + max_height**2 + stack_depth**2)
     fit_distance = (diagonal / 2) / half_tan
 
-    # Apply correction factor for pygfx + cinematic fill (0.85 fills frame nicely)
-    BEAUTY_FILL = 0.85  # Tighter framing for cinematic look
-    fit_distance *= 1.25 * BEAUTY_FILL  # 1.25 is pygfx correction
+    # Apply correction factor for pygfx + cinematic fill
+    # CONTINUE.md: beauty view should "fill the scene cinematically"
+    BEAUTY_FILL = 0.75  # Tighter framing for dramatic cinematic look
+    fit_distance *= BEAUTY_FILL  # No extra pygfx correction needed for oblique views
 
     # Position camera at 3/4 angle: 25° horizontal, 15° up
     # Camera is in front of the stack (positive Z) looking toward negative Z
