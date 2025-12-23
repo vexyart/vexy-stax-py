@@ -12,6 +12,19 @@ this_file: WORK.md
 
 ## Session 2025-12-23
 
+### Cinematic 3-Point Lighting
+
+**Goal**: Improve beauty view photorealism per CONTINUE.md.
+
+**Change**: Upgraded from single directional light to 3-point lighting setup:
+- Key light (warm 1.0/0.98/0.95) from upper-right at intensity 0.8
+- Fill light (cool 0.95/0.97/1.0) from left at intensity 0.3
+- Ambient reduced from 0.6 to 0.5 for better contrast
+
+All lights interpolate to zero at hero culmination, preserving flat composite appearance.
+
+**Result**: Better depth perception and cinematic quality in beauty view while hero view remains unchanged.
+
 ### Hero View Content-Fit Fix
 
 **Problem**: Hero view didn't fill viewport - slide appeared cut off.
