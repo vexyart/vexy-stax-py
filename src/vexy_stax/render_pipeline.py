@@ -140,9 +140,12 @@ def pygfx_render_video(
 
         # Calculate front view position
         fov = config.params.camera_fov or 75.0
-        front_view = calculate_front_viewpoint(front_slide, width, height, fov)
+        front_slide_index = len(config.images) - 1
+        front_view = calculate_front_viewpoint(
+            front_slide, width, height, fov, front_slide_index=front_slide_index
+        )
 
-        # Get starting camera position
+        # Get starting camera position and target
         aspect_ratio = width / height
         start_camera = make_camera(config, aspect_ratio=aspect_ratio)
         start_pos = start_camera.world.position
@@ -150,10 +153,21 @@ def pygfx_render_video(
             x=start_pos[0], y=start_pos[1], z=start_pos[2]
         )
 
+        # Calculate start target (content center at original spacing)
+        start_content_center = calculate_content_center_with_spacing(
+            config.images, config.params.z_spacing
+        )
+        start_target_pos = CameraPosition(
+            x=start_content_center[0],
+            y=start_content_center[1],
+            z=start_content_center[2],
+        )
+
         # Build hero timeline with camera animation
         timeline = build_hero_timeline(
             spacing=config.params.z_spacing,
             start_camera=start_camera_pos,
+            start_target=start_target_pos,
             front_view=front_view,
             defaults=animation,
             return_to_start=return_to_start,
@@ -315,14 +329,15 @@ def _render_animation_frames(
     else:
         camera = gfx.PerspectiveCamera(fov=fov, aspect=aspect_ratio)
 
-    # Get spacing, camera position, and progress frames from timeline
+    # Get spacing, camera position, target, and progress frames from timeline
     spacing_frames = timeline.spacing_frames
     camera_positions = timeline.camera_positions
+    camera_targets = timeline.camera_targets
     progress_values = timeline.progress_values
 
     # Render frame for each timeline step
-    for spacing_value, cam_pos, hero_progress in zip(
-        spacing_frames, camera_positions, progress_values
+    for spacing_value, cam_pos, cam_target, hero_progress in zip(
+        spacing_frames, camera_positions, camera_targets, progress_values
     ):
         # Update config with current spacing
         frame_config = SceneConfig(
@@ -336,14 +351,9 @@ def _render_animation_frames(
         # Rebuild scene with updated spacing and hero progress for lighting/material
         scene = _build_scene(frame_config, textures, hero_progress=hero_progress)
 
-        # Calculate content center for this frame's spacing
-        content_center = calculate_content_center_with_spacing(
-            config.images, spacing_value
-        )
-
-        # Update camera position for this frame
+        # Update camera position and target for this frame
         camera.world.position = (cam_pos.x, cam_pos.y, cam_pos.z)
-        camera.look_at(content_center)
+        camera.look_at((cam_target.x, cam_target.y, cam_target.z))
 
         # Render frame and read pixels
         bundle.renderer.render(scene, camera)

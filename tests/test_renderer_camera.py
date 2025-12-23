@@ -174,6 +174,7 @@ def test_build_hero_timeline_when_defaults_then_has_forward_hold_return() -> Non
     """
     defaults = AnimationDefaults(fps=30, duration=1.0, hold=0.5, easing="power2.inOut")
     start_camera = CameraPosition(x=0, y=0, z=1000)
+    start_target = CameraPosition(x=0, y=0, z=50)  # Content center at original spacing
     front_view = FrontViewpoint(
         position=CameraPosition(x=0, y=0, z=500),
         target=CameraPosition(x=0, y=0, z=0),
@@ -183,6 +184,7 @@ def test_build_hero_timeline_when_defaults_then_has_forward_hold_return() -> Non
     timeline = build_hero_timeline(
         spacing=100.0,
         start_camera=start_camera,
+        start_target=start_target,
         front_view=front_view,
         defaults=defaults,
     )
@@ -190,11 +192,13 @@ def test_build_hero_timeline_when_defaults_then_has_forward_hold_return() -> Non
     # Forward (30) + Hold (15) + Return (30) = 75 frames
     assert len(timeline.spacing_frames) == 75
     assert len(timeline.camera_positions) == 75
+    assert len(timeline.camera_targets) == 75
     assert len(timeline.progress_values) == 75
 
     # Check forward phase starts at original values
     assert timeline.spacing_frames[0] == pytest.approx(100.0)
     assert timeline.camera_positions[0].z == pytest.approx(1000.0)
+    assert timeline.camera_targets[0].z == pytest.approx(50.0)
 
     # Check hold phase has collapsed values (frame 30 is start of hold)
     # Spacing collapses to MIN_LAYER_GAP (not 0) to prevent z-fighting
@@ -203,10 +207,12 @@ def test_build_hero_timeline_when_defaults_then_has_forward_hold_return() -> Non
         MIN_LAYER_GAP, abs=1e-3
     )
     assert timeline.camera_positions[hold_start - 1].z == pytest.approx(500.0, abs=1e-3)
+    assert timeline.camera_targets[hold_start - 1].z == pytest.approx(0.0, abs=1e-3)
 
     # Check return phase ends at original values
     assert timeline.spacing_frames[-1] == pytest.approx(100.0)
     assert timeline.camera_positions[-1].z == pytest.approx(1000.0)
+    assert timeline.camera_targets[-1].z == pytest.approx(50.0)
 
 
 def test_build_hero_timeline_progress_values_when_forward_hold_return_then_0_to_1_to_0() -> (
@@ -218,6 +224,7 @@ def test_build_hero_timeline_progress_values_when_forward_hold_return_then_0_to_
     """
     defaults = AnimationDefaults(fps=30, duration=1.0, hold=0.5, easing="power2.inOut")
     start_camera = CameraPosition(x=0, y=0, z=1000)
+    start_target = CameraPosition(x=0, y=0, z=50)
     front_view = FrontViewpoint(
         position=CameraPosition(x=0, y=0, z=500),
         target=CameraPosition(x=0, y=0, z=0),
@@ -227,6 +234,7 @@ def test_build_hero_timeline_progress_values_when_forward_hold_return_then_0_to_
     timeline = build_hero_timeline(
         spacing=100.0,
         start_camera=start_camera,
+        start_target=start_target,
         front_view=front_view,
         defaults=defaults,
     )

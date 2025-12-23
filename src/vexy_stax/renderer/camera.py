@@ -162,12 +162,14 @@ def calculate_front_viewpoint(
     canvas_width: int,
     canvas_height: int,
     fov: float = 75.0,
+    *,
+    front_slide_index: int = 0,
 ) -> FrontViewpoint:
     """Calculate camera position to fit front slide exactly to canvas.
 
     Mirrors the JS calculateFrontViewpoint() logic:
-    - Slides collapse to z=0 (origin)
-    - Camera positioned directly in front at calculated distance
+    - Slides collapse to MIN_LAYER_GAP spacing during hero shot
+    - Camera positioned directly in front of the front slide
     - Distance computed so larger dimension fills canvas exactly
     - Target Y is at slide center (height/2 above floor)
 
@@ -181,14 +183,16 @@ def calculate_front_viewpoint(
         Canvas height in pixels
     fov:
         Camera field of view in degrees
+    front_slide_index:
+        Index of the front slide (for Z position calculation)
 
     Returns
     -------
     FrontViewpoint
         Camera position, target, and collapse Z
     """
-    # Slides collapse to z=0
-    collapse_z = 0.0
+    # Front slide Z position after collapse (each slide at index * MIN_LAYER_GAP)
+    collapse_z = front_slide_index * MIN_LAYER_GAP
 
     # Get slide dimensions
     width = front_slide.width or 1
@@ -236,13 +240,14 @@ class HeroTimeline:
     """Complete hero shot timeline with spacing and camera positions.
 
     The animation has three phases:
-    1. Forward: Camera moves to front view, slides collapse to z=0
+    1. Forward: Camera moves to front view, slides collapse
     2. Hold: Camera stays at front, slides stay collapsed
     3. Return: Camera returns to start, slides restore spacing
     """
 
     spacing_frames: list[float]
     camera_positions: list[CameraPosition]
+    camera_targets: list[CameraPosition]  # Where camera looks at each frame
     progress_values: list[float]  # 0→1→1→0 for lighting/material interpolation
     fps: int
 
@@ -297,6 +302,7 @@ def build_hero_timeline(
     *,
     spacing: float,
     start_camera: CameraPosition,
+    start_target: CameraPosition,
     front_view: FrontViewpoint,
     defaults: AnimationDefaults,
     return_to_start: bool = True,
@@ -321,6 +327,8 @@ def build_hero_timeline(
         Original z-spacing between slides
     start_camera:
         Initial camera position (beauty view)
+    start_target:
+        Initial camera look-at target (content center at original spacing)
     front_view:
         Target front view configuration
     defaults:
@@ -332,7 +340,7 @@ def build_hero_timeline(
     Returns
     -------
     HeroTimeline
-        Complete timeline with spacing, camera positions, and progress per frame
+        Complete timeline with spacing, camera positions, targets, and progress
     """
     forward_frames = max(1, int(round(defaults.duration * defaults.fps)))
     hold_frames = max(0, int(round(defaults.hold * defaults.fps)))
@@ -343,9 +351,11 @@ def build_hero_timeline(
 
     spacing_frames: list[float] = []
     camera_positions: list[CameraPosition] = []
+    camera_targets: list[CameraPosition] = []
     progress_values: list[float] = []
 
     front_pos = front_view.position
+    front_target = front_view.target
 
     # Forward phase: start → front (progress 0 → 1)
     for i in range(forward_frames):
@@ -365,6 +375,15 @@ def build_hero_timeline(
             )
         )
 
+        # Camera target moves from content center to front slide
+        camera_targets.append(
+            CameraPosition(
+                x=_lerp(start_target.x, front_target.x, progress),
+                y=_lerp(start_target.y, front_target.y, progress),
+                z=_lerp(start_target.z, front_target.z, progress),
+            )
+        )
+
         # Hero progress for lighting/material interpolation
         progress_values.append(progress)
 
@@ -372,6 +391,7 @@ def build_hero_timeline(
     for _ in range(hold_frames):
         spacing_frames.append(target_spacing)
         camera_positions.append(front_pos)
+        camera_targets.append(front_target)
         progress_values.append(1.0)
 
     # Return phase: front → start (progress 1 → 0)
@@ -392,12 +412,22 @@ def build_hero_timeline(
             )
         )
 
+        # Camera target returns to content center
+        camera_targets.append(
+            CameraPosition(
+                x=_lerp(front_target.x, start_target.x, progress),
+                y=_lerp(front_target.y, start_target.y, progress),
+                z=_lerp(front_target.z, start_target.z, progress),
+            )
+        )
+
         # Hero progress decreases back to 0
         progress_values.append(1.0 - progress)
 
     return HeroTimeline(
         spacing_frames=spacing_frames,
         camera_positions=camera_positions,
+        camera_targets=camera_targets,
         progress_values=progress_values,
         fps=defaults.fps,
     )
