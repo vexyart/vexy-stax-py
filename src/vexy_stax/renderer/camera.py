@@ -299,18 +299,19 @@ def build_hero_timeline(
     start_camera: CameraPosition,
     front_view: FrontViewpoint,
     defaults: AnimationDefaults,
+    return_to_start: bool = True,
 ) -> HeroTimeline:
     """Build complete hero shot timeline with camera animation.
 
     Creates a timeline that:
     1. Forward phase: Camera moves to front, spacing collapses to MIN_LAYER_GAP
     2. Hold phase: Camera stays at front, spacing stays at MIN_LAYER_GAP
-    3. Return phase: Camera returns to start, spacing restores
+    3. Return phase (optional): Camera returns to start, spacing restores
 
     Uses MIN_LAYER_GAP (or smaller if original spacing is smaller) to prevent
     z-fighting during hero shot.
 
-    The progress_values track animation culmination (0→1→1→0) for smooth
+    The progress_values track animation culmination (0→1→1→0 or 0→1→1) for smooth
     lighting and material transitions. At culmination (progress=1), lighting
     becomes flat and material switches to basic for composite-like appearance.
 
@@ -324,6 +325,9 @@ def build_hero_timeline(
         Target front view configuration
     defaults:
         Animation timing parameters
+    return_to_start:
+        If True (default), animation returns to starting position after hold.
+        If False, animation ends at hero view (front position, collapsed spacing).
 
     Returns
     -------
@@ -332,7 +336,7 @@ def build_hero_timeline(
     """
     forward_frames = max(1, int(round(defaults.duration * defaults.fps)))
     hold_frames = max(0, int(round(defaults.hold * defaults.fps)))
-    return_frames = forward_frames  # Symmetric return
+    return_frames = forward_frames if return_to_start else 0  # No return if flag is False
 
     # Target is MIN_LAYER_GAP, but never greater than original spacing
     target_spacing = min(MIN_LAYER_GAP, spacing)

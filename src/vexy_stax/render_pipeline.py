@@ -96,6 +96,7 @@ def pygfx_render_video(
     height: int = 600,
     animation: AnimationDefaults | None = None,
     on_progress: ProgressCallback | None = None,
+    return_to_start: bool = False,
 ) -> VideoExportResult:
     """Render a vexy-stax hero animation to video using pygfx.
 
@@ -113,6 +114,9 @@ def pygfx_render_video(
         Animation timing config (defaults to DEFAULT_ANIMATION)
     on_progress:
         Callback invoked after each frame with (current, total)
+    return_to_start:
+        If True, animation returns to beauty view after hero shot.
+        If False (default), animation ends at hero view (straight-on, collapsed).
 
     Returns
     -------
@@ -152,6 +156,7 @@ def pygfx_render_video(
             start_camera=start_camera_pos,
             front_view=front_view,
             defaults=animation,
+            return_to_start=return_to_start,
         )
 
         total_frames = len(timeline.spacing_frames)
