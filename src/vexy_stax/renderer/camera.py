@@ -132,13 +132,13 @@ def calculate_beauty_viewpoint(
     fov_rad = math.radians(fov)
     half_tan = math.tan(fov_rad / 2)
 
-    # Distance to fit floor with margin
-    # pygfx interprets FOV differently - needs correction for actual rendering
-    # The oblique viewing angle means floor projects larger than diagonal suggests
-    PYGFX_FOV_CORRECTION = 1.39  # Empirically measured correction for pygfx FOV
-    OBLIQUE_ANGLE_FACTOR = 1.3  # Floor appears larger due to 3/4 viewing angle
-    BEAUTY_FILL = 0.75  # 25% margin for cinematic framing (floor fits with padding)
-    fit_distance = (floor_diagonal / 2) / half_tan * PYGFX_FOV_CORRECTION * OBLIQUE_ANGLE_FACTOR * (1.0 / BEAUTY_FILL)
+    # Distance to fit floor with cinematic framing
+    # The oblique viewing angle (3/4 perspective) means camera sees floor at an angle.
+    # Account for content filling ~85% of frame (15% margin for cinematic look).
+    # The aspect ratio affects vertical fit - for wide canvases, vertical FOV is limiting.
+    BEAUTY_FILL = 0.85  # 15% margin for cinematic framing
+    OBLIQUE_PROJECTION = 1.15  # Slight increase for oblique viewing angle
+    fit_distance = (floor_diagonal / 2) / half_tan * OBLIQUE_PROJECTION / BEAUTY_FILL
 
     # Camera direction: left, above, in front (normalized)
     # X: -0.6 = to the left

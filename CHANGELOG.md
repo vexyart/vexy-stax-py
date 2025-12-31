@@ -6,7 +6,14 @@ this_file: CHANGELOG.md
 
 All notable changes to vexy-stax project will be documented in this file.
 
-## [Unreleased] - 2025-12-23
+## [Unreleased] - 2025-12-31
+
+### 2025-12-31 - Beauty View Framing Fix
+- **Problem**: Beauty view content too small - excessive white space around 3D stack
+- **Root cause**: `calculate_beauty_viewpoint()` overcorrected with 2.4× distance factor
+- **Fix**: Simplified to 1.35× factor (OBLIQUE_PROJECTION=1.15, BEAUTY_FILL=0.85)
+- **Result**: Content fills frame cinematically with 15% margin
+- **Tests**: 115 pass, 4 skip (no changes)
 
 ### 2025-12-23 - Visual Quality Verification Complete
 - **Beauty view**: Cinematic 3/4 angle fills frame, 3D stack with depth perspective visible

@@ -4,13 +4,46 @@ this_file: WORK.md
 
 # Vexy Stax PY - Work Progress
 
-## Current Status (2025-12-23)
+## Current Status (2025-12-31)
 
 - **Tests**: 115 pass, 4 skip
 - **Default**: pygfx backend (playwright optional via `[browser]`)
 - **GPU flags**: `--require-gpu` rejects software rendering
 - **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 - **Visual Quality**: All CONTINUE.md requirements verified ✅
+
+## Session 2025-12-31 - Beauty View Framing Fix
+
+### Problem
+Beauty view had content appearing too small - excessive white space around the 3D stack.
+
+### Root Cause
+`calculate_beauty_viewpoint()` in `camera.py` had overcorrected distance factors:
+- `PYGFX_FOV_CORRECTION = 1.39`
+- `OBLIQUE_ANGLE_FACTOR = 1.3`
+- `1.0 / BEAUTY_FILL = 1.33` (where BEAUTY_FILL = 0.75)
+
+Combined multiplier: 1.39 × 1.3 × 1.33 = 2.4× theoretical distance - far too conservative.
+
+### Fix
+Simplified to:
+- `OBLIQUE_PROJECTION = 1.15` (slight increase for oblique viewing)
+- `BEAUTY_FILL = 0.85` (15% margin for cinematic framing)
+
+New multiplier: 1.15 / 0.85 = 1.35× (vs previous 2.4×)
+
+### Result
+- Beauty view now fills frame cinematically with 3D stack clearly visible
+- Floor visible beneath slides
+- 15% margin maintains professional framing
+- File size increased from 190KB to 446KB (more content in frame)
+
+### Verification
+- 115 tests passing
+- demopy.sh renders correctly
+- Visual inspection confirms improved framing
+
+---
 
 ## Session 2025-12-23 - Hero View Content-Fit Fixed
 
