@@ -12,36 +12,27 @@ this_file: WORK.md
 - **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 - **Visual Quality**: All CONTINUE.md requirements verified ✅
 
-## Session 2025-12-31 - Beauty View Framing Fix
+## Session 2025-12-31 - Beauty View Bounding Sphere Fit
 
 ### Problem
-Beauty view had content appearing too small - excessive white space around the 3D stack.
+CONTINUE.md requires: "beauty view should have floor width perfectly fit within the viewport".
+Previous implementation used floor diagonal which left excess white space or clipped content.
 
-### Root Cause
-`calculate_beauty_viewpoint()` in `camera.py` had overcorrected distance factors:
-- `PYGFX_FOV_CORRECTION = 1.39`
-- `OBLIQUE_ANGLE_FACTOR = 1.3`
-- `1.0 / BEAUTY_FILL = 1.33` (where BEAUTY_FILL = 0.75)
-
-Combined multiplier: 1.39 × 1.3 × 1.33 = 2.4× theoretical distance - far too conservative.
-
-### Fix
-Simplified to:
-- `OBLIQUE_PROJECTION = 1.15` (slight increase for oblique viewing)
-- `BEAUTY_FILL = 0.85` (15% margin for cinematic framing)
-
-New multiplier: 1.15 / 0.85 = 1.35× (vs previous 2.4×)
+### Solution
+Changed to bounding sphere approach:
+- Calculate 3D bounding sphere of all content (floor + slides)
+- `content_radius = sqrt((floor_width/2)² + max_height² + (floor_length/2)²)`
+- Distance = `content_radius / tan(fov/2) * 1.15` (15% margin)
 
 ### Result
-- Beauty view now fills frame cinematically with 3D stack clearly visible
-- Floor visible beneath slides
-- 15% margin maintains professional framing
-- File size increased from 190KB to 446KB (more content in frame)
+- All content (floor + slides) fits within viewport without clipping
+- Cinematic 15% margin for aesthetic framing
+- Works for any scene configuration
 
 ### Verification
 - 115 tests passing
 - demopy.sh renders correctly
-- Visual inspection confirms improved framing
+- Visual inspection confirms no clipping
 
 ---
 

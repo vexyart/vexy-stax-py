@@ -8,11 +8,12 @@ All notable changes to vexy-stax project will be documented in this file.
 
 ## [Unreleased] - 2025-12-31
 
-### 2025-12-31 - Beauty View Framing Fix
-- **Problem**: Beauty view content too small - excessive white space around 3D stack
-- **Root cause**: `calculate_beauty_viewpoint()` overcorrected with 2.4× distance factor
-- **Fix**: Simplified to 1.35× factor (OBLIQUE_PROJECTION=1.15, BEAUTY_FILL=0.85)
-- **Result**: Content fills frame cinematically with 15% margin
+### 2025-12-31 - Beauty View Bounding Sphere Fit
+- **Problem**: Floor width needed to fit perfectly within viewport (CONTINUE.md requirement)
+- **Solution**: Changed from floor diagonal to bounding sphere approach
+  - `content_radius = sqrt((floor_width/2)² + max_height² + (floor_length/2)²)`
+  - Distance = `content_radius / tan(fov/2) * 1.15` (15% cinematic margin)
+- **Result**: All content (floor + slides) fits within viewport without clipping
 - **Tests**: 115 pass, 4 skip (no changes)
 
 ### 2025-12-23 - Visual Quality Verification Complete

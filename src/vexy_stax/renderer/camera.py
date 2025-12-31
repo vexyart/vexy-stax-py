@@ -127,18 +127,24 @@ def calculate_beauty_viewpoint(
     floor_center_z = -stack_depth / 2
     target = (0.0, 0.0, floor_center_z)  # Target floor center
 
-    # Camera distance to fit floor diagonal in FOV
-    floor_diagonal = math.sqrt(floor_width**2 + floor_length**2)
+    # Camera distance to fit floor and slides within viewport
+    # CONTINUE.md: "beauty view should have floor width perfectly fit within the viewport"
     fov_rad = math.radians(fov)
     half_tan = math.tan(fov_rad / 2)
 
-    # Distance to fit floor with cinematic framing
-    # The oblique viewing angle (3/4 perspective) means camera sees floor at an angle.
-    # Account for content filling ~85% of frame (15% margin for cinematic look).
-    # The aspect ratio affects vertical fit - for wide canvases, vertical FOV is limiting.
-    BEAUTY_FILL = 0.85  # 15% margin for cinematic framing
-    OBLIQUE_PROJECTION = 1.15  # Slight increase for oblique viewing angle
-    fit_distance = (floor_diagonal / 2) / half_tan * OBLIQUE_PROJECTION / BEAUTY_FILL
+    # Calculate the bounding sphere of all content (floor + slides)
+    # Floor extends floor_width/2 in X, floor_length/2 in Z from center
+    # Slides extend max_height above the floor
+    # The front slide (at Z=0) is offset from floor center by stack_depth/2
+    content_radius = math.sqrt(
+        (floor_width / 2) ** 2 +  # X extent
+        (max_height) ** 2 +  # Y extent (slides above floor)
+        (floor_length / 2) ** 2  # Z extent
+    )
+
+    # Distance to fit bounding sphere in FOV with small margin
+    CINEMATIC_MARGIN = 1.15  # 15% margin for aesthetic framing
+    fit_distance = content_radius / half_tan * CINEMATIC_MARGIN
 
     # Camera direction: left, above, in front (normalized)
     # X: -0.6 = to the left
