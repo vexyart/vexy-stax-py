@@ -12,6 +12,20 @@ this_file: WORK.md
 - **Coordinate System**: PLAN.md §1 compliant (final slide at Z=0)
 - **Visual Quality**: All CONTINUE.md requirements verified ✅
 
+### Photorealism Assessment
+
+Current implementation uses "basic" (unlit) material intentionally:
+- Source images have baked-in lighting from photography
+- 3D effect comes from perspective and parallax
+- Adding artificial lighting would wash out original colors
+
+**Future improvements** (not implemented, would add complexity):
+- Gradient shadow texture on floor (darker under slides)
+- Soft edge fade on floor perimeter
+- Ambient occlusion simulation
+
+These would require custom shaders or procedural textures. Current visual quality is satisfactory for production use.
+
 ## Session 2025-12-31 - Beauty View Bounding Sphere Fit
 
 ### Problem
