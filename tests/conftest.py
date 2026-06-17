@@ -2,7 +2,7 @@
 """Shared test fixtures.
 
 Uses the repo-local ``testdata/airbl-lores`` slides (8 layers, 1246x806) so the
-ported ``test_images.py`` / ``test_juicy.py`` run fully standalone.
+unit tests run fully standalone.
 """
 
 from __future__ import annotations

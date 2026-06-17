@@ -30,13 +30,14 @@ vexy-stax = "vexy_stax.cli:main"
 
 [tool.hatch.version]
 source = "vcs"
-fallback-version = "3.0.0"
+fallback-version = "3.0.1"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/vexy_stax/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vexy_stax"]
+artifacts = ["src/vexy_stax/fonts/*"]
 
 [tool.hatch.envs.default]
 dependencies = [

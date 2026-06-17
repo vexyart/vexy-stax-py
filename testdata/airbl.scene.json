@@ -1,21 +1,98 @@
 {
-  "version": 1,
-  "view": "expanded",
-  "size": { "width": 1246, "height": 806 },
-  "camera": { "gap": 480, "distance": "90%", "angle": 60, "elevation": 0, "fov": 39.6 },
-  "transition": { "kind": "expand_collapse", "duration": 3.0, "wait": 1.0, "fps": 30, "easing": "easeInOutCubic" },
-  "floor": { "color": "#f2f2f2", "opacity": 1.0, "reflectivity": 0.5 },
   "background": "#ffffff",
+  "camera": {
+    "angle": 60,
+    "distance": "100%",
+    "elevation": 5,
+    "fov": 39.6,
+    "gap": 4030
+  },
+  "caption_defaults": {
+    "color": "#222222",
+    "size": 403
+  },
+  "edge": {
+    "width": 0
+  },
+  "floor": {
+    "color": "#f2f2f2",
+    "opacity": 0.1,
+    "reflectivity": 0.1
+  },
   "juicy": false,
-  "caption_defaults": { "size": 28, "color": "#222222" },
+  "size": {
+    "height": 4030,
+    "width": 6234
+  },
   "slides": [
-    { "src": "airbl-lores/airbl-020-source.png",   "caption": { "text": "Source",   "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-030-pink.png",     "caption": { "text": "Pink",     "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-040-stars.png",    "caption": { "text": "Stars",    "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-050-backdrop.png", "caption": { "text": "Backdrop", "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-060-outline.png",  "caption": { "text": "Outline",  "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-070-inline.png",   "caption": { "text": "Inline",   "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-080-halftone.png", "opacity": { "expanded": 1.0, "compact": 0.4 }, "caption": { "text": "Halftone", "show_in": "expanded" } },
-    { "src": "airbl-lores/airbl-090-ui.png",       "caption": { "text": "UI",       "show_in": "expanded" } }
-  ]
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Source image"
+      },
+      "src": "airbl/airbl-020-source.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Background"
+      },
+      "src": "airbl/airbl-030-pink.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Halftone fill"
+      },
+      "src": "airbl/airbl-040-stars.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Trace fill"
+      },
+      "src": "airbl/airbl-050-backdrop.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Trace fill"
+      },
+      "src": "airbl/airbl-060-outline.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Trace fill"
+      },
+      "src": "airbl/airbl-070-inline.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "Halftone fill"
+      },
+      "opacity": {
+        "compact": 0.4,
+        "expanded": 1
+      },
+      "src": "airbl/airbl-080-halftone.png"
+    },
+    {
+      "caption": {
+        "show_in": "expanded",
+        "text": "App UI"
+      },
+      "src": "airbl/airbl-090-ui.png"
+    }
+  ],
+  "transition": {
+    "duration": 4,
+    "easing": "easeInOutCubic",
+    "fps": 20,
+    "kind": "expand_collapse",
+    "wait": 1
+  },
+  "version": 1,
+  "view": "expanded"
 }

@@ -1,8 +1,8 @@
 # this_file: tests/test_images.py
-"""Tests for vexy_stax.images module (ported from vexy-stax2-py).
+"""Tests for the image compositing module.
 
-Dimensions/count adapted to the repo-local ``airbl-lores`` slides
-(8 layers, 1246x806) provided by ``conftest.image_paths``.
+Verifies image dimension loading and flat overlay rendering using the
+repository's sample slides.
 """
 
 import os

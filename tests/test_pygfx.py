@@ -52,8 +52,10 @@ def small_scene():
     from vexy_stax.scene import load_scene
 
     scene = load_scene(EXAMPLE)
+    scale = RENDER_W / scene.size.width
     scene.size.width = RENDER_W
     scene.size.height = RENDER_H
+    scene.camera.gap = scene.camera.gap * scale
     return scene
 
 
@@ -87,6 +89,26 @@ def test_render_still(view: str, small_scene, tmp_path: Path) -> None:
     assert unique > MIN_UNIQUE_COLORS, (
         f"{view} render has too few colors (unique={unique} <= {MIN_UNIQUE_COLORS}); likely blank"
     )
+
+
+@pytest.mark.skipif(importlib.util.find_spec("pygfx") is None, reason="pygfx not importable")
+def test_caption_font_family_resolves_default() -> None:
+    """Issues 327/328: the bundled vexy-stax font is registered so pygfx renders it, not its
+    heavier built-in default. Its real family is "Zalando Sans Expanded"."""
+    from vexy_stax.engines.pygfx import _caption_font_family, _register_font
+
+    BUNDLED = "Zalando Sans Expanded"
+    # No font requested → resolves to the bundled default (so captions aren't pygfx's fallback).
+    assert _caption_font_family(None) == BUNDLED
+    # Default-font aliases all map to the bundled face.
+    assert _caption_font_family("Zalando Sans") == BUNDLED
+    assert _caption_font_family("vexy-stax") == BUNDLED
+    # An unrelated family name is left as-is (host font).
+    assert _caption_font_family("Arial") == "Arial"
+    # A direct path to the bundled TTF registers and resolves to its family name.
+    import vexy_stax.geometry as g
+
+    assert _register_font(str(g.default_font_path())) == BUNDLED
 
 
 @pytest.mark.pygfx

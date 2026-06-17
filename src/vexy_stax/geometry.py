@@ -24,11 +24,135 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 from vexy_stax.scene import Scene, View
 
+# Path to the bundled default caption font (issue 328: vexy-stax.ttf == Zalando Sans Expanded,
+# the project default; was REM-Regular.ttf in issue 319). The JS engine matches this with the
+# Google Font "Zalando Sans" at wdth 125 / wght 500.
+_FONTS_DIR = Path(__file__).parent / "fonts"
+_DEFAULT_FONT_PATH = _FONTS_DIR / "vexy-stax.ttf"
+
+
+def default_font_path() -> Path | None:
+    """Return the path to the bundled default caption font (vexy-stax.ttf), or None if absent."""
+    return _DEFAULT_FONT_PATH if _DEFAULT_FONT_PATH.exists() else None
+
+
 MIN_GAP = 3.0
 FILL = 0.85
+V_FILL = 0.98  # expanded: max fraction of frame height the deck may occupy (no crop)
+
+# Caption fade defaults (issue 302 §B.4): captions fade in over the final
+# CAPTION_FADE_WINDOW fraction of the morph, staggered back->front by CAPTION_STAGGER.
+CAPTION_FADE_WINDOW = 0.9
+CAPTION_STAGGER = 0.3
+# Caption layout (issue 302 §B, em-based): captions sit to the LEFT of the plates with
+# their RIGHT edges aligned CAPTION_GAP_EM em (em == caption size) from the plate left
+# edge (0 = touching, issues 321/323), and the text BASELINE CAPTION_BASELINE_EM em above
+# the virtual ground (the floor at the bottom of the plates). The nominal "em" is the
+# caption size in scene points.
+CAPTION_GAP_EM = 0.0  # issues 321/323: caption plate right edge touches slide plate left edge
+CAPTION_BASELINE_EM = 1.0
+# Caption plate (issues 311, 315): each caption sits on a small white opaque bordered plate.
+# The plate height is CAPTION_PLATE_HEIGHT_FRAC of the (frontmost) plate height; the text
+# 1em is CAPTION_FONT_FRAC_OF_PLATE of the caption-plate height; the plate is padded by
+# CAPTION_PLATE_PAD_EM em on each side of the typeset text. So the default caption size is
+# CAPTION_PLATE_HEIGHT_FRAC * CAPTION_FONT_FRAC_OF_PLATE of the scene height. Issue 315 set
+# plate height 10%/pad 0.75em; issue 324 makes the default font 1/3 larger (0.075 -> 0.10).
+CAPTION_PLATE_HEIGHT_FRAC = 0.1 * 4 / 3  # ≈0.1333 (issue 324: font 1/3 larger; was 0.10)
+CAPTION_FONT_FRAC_OF_PLATE = 0.75
+CAPTION_PLATE_PAD_EM = 0.75
+CAPTION_DEFAULT_SIZE_FRAC = CAPTION_PLATE_HEIGHT_FRAC * CAPTION_FONT_FRAC_OF_PLATE  # ≈0.10 (was 0.075)
+
+# Floor reflection (issue 303 §1) — shared so the blurry reflection is consistent across
+# engines. A fraction of the plate-image height (px). (Floor shadows were removed per
+# issue 312.)
+REFLECTION_BLUR_FRAC = 0.02  # Gaussian blur radius of the mirror reflection (blurry)
+
+
+def plate_edge_width(scene: Scene) -> float:
+    """Plate border thickness in scene points (issue 305): ``edge.width`` × plate height.
+
+    A fraction of the plate height so the border scales with the scene; engines draw a
+    frame of this thickness around each plate's rectangle in ``scene.edge.color``. The
+    caption plates (issue 311) reuse this same border.
+    """
+    return scene.size.height * scene.edge.width
+
+
+def caption_size(scene: Scene) -> float:
+    """Nominal caption text size in scene points (1em).
+
+    Resolves ``caption_defaults.size`` when set, else the default of
+    ``CAPTION_DEFAULT_SIZE_FRAC`` of the scene height (issue 311: 75% of the caption-plate
+    height, which is 20% of the frontmost plate height → 15%). All engines use this one
+    nominal size so caption plates and text are sized consistently.
+    """
+    cd = scene.caption_defaults
+    if cd is not None and cd.size is not None:
+        return float(cd.size)
+    return max(8.0, scene.size.height * CAPTION_DEFAULT_SIZE_FRAC)
+
+
+def caption_fill_color(scene: Scene) -> str:
+    """Caption plate FILL color (issue 324): ``caption_defaults.fill_color`` else the slide
+    border color ``scene.edge.color`` (so by default fill, caption border and slide border match)."""
+    cd = scene.caption_defaults
+    if cd is not None and cd.fill_color:
+        return cd.fill_color
+    return scene.edge.color
+
+
+def caption_border_color(scene: Scene) -> str:
+    """Caption plate BORDER color (issue 324): ``caption_defaults.border_color`` else
+    ``scene.edge.color`` (the slide border color)."""
+    cd = scene.caption_defaults
+    if cd is not None and cd.border_color:
+        return cd.border_color
+    return scene.edge.color
+
+
+def caption_plate_height(scene: Scene) -> float:
+    """Height of a caption plate in scene points (issue 311).
+
+    The caption text 1em is ``CAPTION_FONT_FRAC_OF_PLATE`` of this, so the plate height is
+    ``caption_size / CAPTION_FONT_FRAC_OF_PLATE`` — keeping the "font = 75% of plate height"
+    relationship whether the caption size is the default or explicitly set.
+    """
+    return caption_size(scene) / CAPTION_FONT_FRAC_OF_PLATE
+
+
+def caption_plate_center_y(scene: Scene) -> float:
+    """World Y of a caption plate's vertical center (issue 311).
+
+    The caption plate sits on the virtual ground (the floor at ``Y = -height/2``), so its
+    center is half its height above the ground. This places the captions low, beneath/left
+    of the deck, matching the reference layout.
+    """
+    return -(scene.size.height / 2.0) + caption_plate_height(scene) / 2.0
+
+
+def caption_anchor_x(scene: Scene) -> float:
+    """World X where every caption's RIGHT edge aligns — 2em left of the plate left edge.
+
+    All plates share ``scene.size`` width and are centered at ``X = 0``, so the plate left
+    edge is ``-width/2``; captions right-align there minus a ``CAPTION_GAP_EM`` em gap
+    (issue 302 §B). Engines anchor each caption's text block right edge here at the plate's
+    ``Z``, with the baseline at :func:`caption_baseline_y`.
+    """
+    return -(scene.size.width / 2.0 + CAPTION_GAP_EM * caption_size(scene))
+
+
+def caption_baseline_y(scene: Scene) -> float:
+    """World Y of the caption text BASELINE — 1em above the virtual ground (issue 302 §B).
+
+    The ground is the floor at the bottom of the plates (``Y = -height/2``; the tallest
+    plate's vertical middle sits at ``Y = 0``). The baseline is ``CAPTION_BASELINE_EM`` em
+    above it, so the captions rest just above the floor on which the plates stand.
+    """
+    return -(scene.size.height / 2.0) + CAPTION_BASELINE_EM * caption_size(scene)
 
 
 @dataclass(frozen=True)
@@ -47,7 +171,8 @@ class FrameState:
 
     camera: CameraPose
     gaps: list[float]  # effective gap before each slide (slide 0's gap is unused)
-    opacities: list[float]
+    opacities: list[float]  # per-slide plate opacity
+    caption_opacities: list[float]  # per-slide caption opacity (staggered fade)
 
 
 def plate_gaps(scene: Scene) -> list[float]:
@@ -117,18 +242,25 @@ def _parse_distance(distance: float | str, viewport_width: float) -> float:
     return float(text)
 
 
-def expanded_camera(scene: Scene) -> CameraPose:
-    """Angled hero camera framing the expanded *deck* (SPEC.md §3, legacy SCENE §8/§9).
+def expanded_camera(scene: Scene, viewport_aspect: float | None = None) -> CameraPose:
+    """Angled hero camera framing the expanded *deck* (SPEC.md §3, issue 302 §2).
 
-    Unlike the legacy floor-diagonal fit (which let a deep floor shrink the plates
-    to a speck), this fits the deck's *plate* bounding box: the eight plate corners
-    are projected onto the camera right/up axes and the distance is chosen so the
-    deck fills ``FILL`` of the frame on its tighter axis. Plate size is taken from
-    ``scene.size`` (see module docstring) so JS and Python agree exactly.
+    The distance is chosen — and the camera horizontally re-centered (panned) — so
+    that, in the projected image, the left margin (viewport edge → leftmost plate)
+    and the right margin (rightmost plate → viewport edge) are each equal to the
+    *projected gap* between adjacent plates (the mean adjacent plate-center
+    horizontal stagger). All plates stay fully inside the frame (a vertical-fit floor
+    keeps the deck from cropping top/bottom). Plate size is ``scene.size`` (see module
+    docstring) so JS and Python agree exactly; the solve is a deterministic bisection
+    so both languages converge identically.
+
+    ``viewport_aspect`` (width/height) defaults to the scene aspect (the rendered
+    engines render at ``scene.size``). The live element passes its container aspect so
+    the deck fills the viewport vertically when the viewport aspect differs (issue 314).
     """
     cam = scene.camera
     depth = stack_depth(scene, "expanded")
-    target = (0.0, 0.0, -depth / 2.0)
+    base_target = (0.0, 0.0, -depth / 2.0)
 
     # Direction target->camera (azimuth swings toward -X, elevation lifts +Y,
     # head-on is along +Z toward the viewer).
@@ -149,26 +281,98 @@ def expanded_camera(scene: Scene) -> CameraPose:
     right = _normalize(right) if abs(_dot(look, up_world)) < 0.999 else (1.0, 0.0, 0.0)
     up = _normalize(_cross(right, look))
 
-    # Deck plate corners (uniform plate = scene.size), stacked along Z.
+    hfov = math.radians(cam.fov)
+    aspect = viewport_aspect if viewport_aspect else scene.size.width / scene.size.height
+    vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
+    th = math.tan(hfov / 2.0)
+    tv = math.tan(vfov / 2.0)
+
     half_w_plate = scene.size.width / 2.0
     half_h_plate = scene.size.height / 2.0
     z_positions = _stack_positions(plate_gaps(scene))
-    half_w = 0.0
-    half_h = 0.0
+
+    # Precompute each corner's (right, up, look) components relative to base_target,
+    # so projecting at a candidate (distance D, horizontal pan) is cheap and exact.
+    # cr/cu/cl: offsets along right/up/look. ndc_x = (cr - pan)/((cl + D)*th).
+    corners: list[tuple[float, float, float]] = []
+    centers: list[tuple[float, float]] = []  # (right-offset, look-offset) of each plate center
     for z in z_positions:
+        rel_c = _sub((0.0, 0.0, z), base_target)
+        centers.append((_dot(rel_c, right), _dot(rel_c, look)))
         for sx in (-half_w_plate, half_w_plate):
             for sy in (-half_h_plate, half_h_plate):
-                rel = _sub((sx, sy, z), target)
-                half_w = max(half_w, abs(_dot(rel, right)))
-                half_h = max(half_h, abs(_dot(rel, up)))
+                rel = _sub((sx, sy, z), base_target)
+                corners.append((_dot(rel, right), _dot(rel, up), _dot(rel, look)))
 
-    hfov = math.radians(cam.fov)
-    aspect = scene.size.width / scene.size.height
-    vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
-    d_w = half_w / (FILL * math.tan(hfov / 2.0))
-    d_h = half_h / (FILL * math.tan(vfov / 2.0))
-    distance = max(d_w, d_h)
+    def _span(distance: float, pan: float) -> tuple[float, float, float]:
+        """Return (min ndc_x, max ndc_x, max |ndc_y|) of the deck at (distance, pan)."""
+        a, b, ymax = math.inf, -math.inf, 0.0
+        for cr, cu, cl in corners:
+            zv = cl + distance
+            nx = (cr - pan) / (zv * th)
+            a = min(a, nx)
+            b = max(b, nx)
+            ymax = max(ymax, abs(cu / (zv * tv)))
+        return a, b, ymax
+
+    def _gap(distance: float, pan: float) -> float:
+        """Mean adjacent plate-center horizontal NDC stagger (the projected gap)."""
+        xs = [(cr - pan) / ((cl + distance) * th) for cr, cl in centers]
+        if len(xs) < 2:
+            return 0.0
+        return sum(abs(xs[i + 1] - xs[i]) for i in range(len(xs) - 1)) / (len(xs) - 1)
+
+    def _recenter(distance: float) -> float:
+        """Horizontal pan that centers the projected deck span (so left == right)."""
+        lo, hi = -half_w_plate * 8.0, half_w_plate * 8.0
+        for _ in range(64):
+            pan = 0.5 * (lo + hi)
+            a, b, _y = _span(distance, pan)
+            if a + b > 0.0:  # span sits right of center -> pan further right
+                lo = pan
+            else:
+                hi = pan
+        return 0.5 * (lo + hi)
+
+    # Bracket scale: the legacy bounding-box fit distance.
+    half_w = max(abs(cr) for cr, _cu, _cl in corners)
+    half_h = max(abs(cu) for _cr, cu, _cl in corners)
+    d0 = max(half_w / (FILL * th), half_h / (FILL * tv))
+
+    # margin grows with distance, gap shrinks with distance => (margin - gap) is
+    # monotone increasing; bisect for the crossover margin == gap.
+    lo, hi = d0 * 0.1, d0 * 20.0
+    distance = d0
+    for _ in range(80):
+        distance = 0.5 * (lo + hi)
+        pan = _recenter(distance)
+        a, b, _y = _span(distance, pan)
+        margin = 0.5 * ((a + 1.0) + (1.0 - b))
+        if margin - _gap(distance, pan) > 0.0:
+            hi = distance
+        else:
+            lo = distance
+    distance = 0.5 * (lo + hi)
+
+    # Vertical-fit floor: never let the gap pull the camera so close the deck crops
+    # top/bottom. Smallest distance whose deck vertical extent fits V_FILL of frame.
+    vlo, vhi = d0 * 0.05, d0 * 40.0
+    for _ in range(80):
+        dv = 0.5 * (vlo + vhi)
+        _a, _b, ymax = _span(dv, 0.0)  # vertical extent is independent of pan
+        if ymax > V_FILL:
+            vlo = dv
+        else:
+            vhi = dv
+    distance = max(distance, 0.5 * (vlo + vhi))
+
+    pan = _recenter(distance)
     near = max(1.0, distance * 0.005)
+    target = (
+        base_target[0] + right[0] * pan,
+        base_target[1] + right[1] * pan,
+        base_target[2] + right[2] * pan,
+    )
     position = (
         target[0] + to_cam[0] * distance,
         target[1] + to_cam[1] * distance,
@@ -177,16 +381,50 @@ def expanded_camera(scene: Scene) -> CameraPose:
     return CameraPose(position=position, target=target, fov=cam.fov, near=near)
 
 
-def compact_camera(scene: Scene) -> CameraPose:
+def compact_camera(scene: Scene, viewport_aspect: float | None = None) -> CameraPose:
     """Head-on camera on ``+Z`` aimed at the deck center.
 
-    ``distance`` is parsed as "P%" of viewport width or absolute points. Near
-    plane scales with distance to avoid depth-buffer flashing during animation.
+    If ``distance`` is a string ending in ``%``, it represents the viewport-fit percentage,
+    fitting the frontmost image (width = scene.size.width) so that it occupies P% of the viewport.
+    Otherwise, it is treated as absolute points.
+
+    ``viewport_aspect`` (width/height) defaults to the scene aspect — used by the rendered
+    engines, which render at ``scene.size``. The live browser element passes its actual
+    container aspect so the plate fits tight with aspect-ratio padding when the viewport
+    aspect differs from the plate (issue 314: a 2:1 viewport with a narrower plate gets side
+    padding, the plate filling the limiting vertical axis).
     """
     cam = scene.camera
     depth = stack_depth(scene, "compact")
     target = (0.0, 0.0, -depth / 2.0)
-    distance = _parse_distance(cam.distance, float(scene.size.width))
+
+    is_percent = False
+    pct_val = 90.0
+    if isinstance(cam.distance, str):
+        text = cam.distance.strip()
+        if text.endswith("%"):
+            is_percent = True
+            try:
+                pct_val = float(text[:-1])
+            except ValueError:
+                pct_val = 90.0
+
+    if is_percent:
+        # Dual-axis crop-free fit (SPEC.md §3, issue 302 §1): fit the frontmost
+        # plate (scene.size) so the *limiting* axis touches P% of the frame and the
+        # other axis only ever has extra padding (never a crop). theta_horiz = fov;
+        # theta_vert derived from the VIEWPORT aspect; distance = max(d_w, d_h).
+        hfov = math.radians(cam.fov)
+        aspect = viewport_aspect if viewport_aspect else scene.size.width / scene.size.height
+        vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
+        frac = pct_val / 100.0
+        d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
+        d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)
+        dist_to_Z0 = max(d_w, d_h)
+        distance = dist_to_Z0 + depth / 2.0
+    else:
+        distance = _parse_distance(cam.distance, float(scene.size.width))
+
     near = max(1.0, distance * 0.005)
     position = (target[0], target[1], target[2] + distance)
     return CameraPose(position=position, target=target, fov=cam.fov, near=near)
@@ -223,6 +461,54 @@ def interpolate_opacity(slide, t_expanded: float) -> float:
     return max(0.0, min(1.0, value))
 
 
+def caption_opacities(scene: Scene, t_expanded: float) -> list[float]:
+    """Per-slide caption opacity at morph factor ``t_expanded`` (0=compact, 1=expanded).
+
+    Honors ``caption.show_in`` (issue 301 §5) and the staggered fade (issue 302 §B.4):
+    an ``expanded`` caption stays invisible until the final ``window`` fraction of the
+    morph, then fades in — staggered back (index 0) → front so the frontmost caption
+    reaches full opacity exactly at ``t = 1`` (i.e. captions are at full opacity ONLY in
+    the expanded view). ``window``/``stagger`` come from ``scene.caption_fade`` (else the
+    CAPTION_FADE_WINDOW / CAPTION_STAGGER defaults). ``both`` → 1, ``none`` → 0,
+    ``compact`` → fades out linearly as the deck expands. Slides without a caption → 0.
+    """
+    t = max(0.0, min(1.0, t_expanded))
+    cf = scene.caption_fade
+    window = cf.window if cf is not None else CAPTION_FADE_WINDOW
+    stagger = cf.stagger if cf is not None else CAPTION_STAGGER
+    n = len(scene.slides)
+    denom = (n - 1) if n > 1 else 1
+
+    # Total back->front spread (fraction of the morph). Default: `stagger` of the window.
+    # Issue 309: if stagger_frames is set + a transition exists, the per-caption step is
+    # that many frames of one leg; the spread is (n-1) steps, capped so the frontmost
+    # caption still finishes fading at t=1 (ramp stays positive).
+    spread = stagger * window
+    if cf is not None and cf.stagger_frames is not None and scene.transition is not None:
+        leg_frames = round(scene.transition.duration * scene.transition.fps)
+        if leg_frames > 0:
+            step_t = cf.stagger_frames / leg_frames
+            spread = min((n - 1) * step_t, window * 0.95)
+    ramp = max(1e-6, window - spread)
+
+    out: list[float] = []
+    for i, slide in enumerate(scene.slides):
+        cap = slide.caption
+        if cap is None or cap.show_in == "none":
+            out.append(0.0)
+            continue
+        if cap.show_in == "both":
+            out.append(1.0)
+            continue
+        if cap.show_in == "compact":
+            out.append(1.0 - t)
+            continue
+        # expanded: staggered window fade-in, backmost (i=0) first, frontmost last.
+        start_i = (1.0 - window) + (i / denom) * spread
+        out.append(max(0.0, min(1.0, (t - start_i) / ramp)))
+    return out
+
+
 def _lerp3(a: tuple[float, float, float], b: tuple[float, float, float], t: float) -> tuple[float, float, float]:
     return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t)
 
@@ -242,7 +528,12 @@ def _frame_state(scene: Scene, compact: CameraPose, expanded: CameraPose, t: flo
     expanded_gaps = plate_gaps(scene)
     gaps = [MIN_GAP + (g - MIN_GAP) * t for g in expanded_gaps]
     opacities = [interpolate_opacity(s, t) for s in scene.slides]
-    return FrameState(camera=_pose_at(scene, compact, expanded, t), gaps=gaps, opacities=opacities)
+    return FrameState(
+        camera=_pose_at(scene, compact, expanded, t),
+        gaps=gaps,
+        opacities=opacities,
+        caption_opacities=caption_opacities(scene, t),
+    )
 
 
 # Each transition is a sequence of legs; each leg is (from, to) morph endpoints

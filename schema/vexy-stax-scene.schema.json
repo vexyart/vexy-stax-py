@@ -28,9 +28,9 @@
       "properties": {
         "gap": { "type": "number", "minimum": 0, "default": 1920, "description": "Points between adjacent plates in expanded view." },
         "distance": {
-          "description": "Camera distance: absolute points as a number/string, or viewport-fit percentage like \"90%\".",
+          "description": "Camera distance: absolute points as a number/string, or viewport-fit percentage like \"100%\".",
           "anyOf": [{ "type": "number" }, { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?%?$" }],
-          "default": "90%"
+          "default": "100%"
         },
         "angle": { "type": "number", "default": 60, "description": "Azimuth degrees for expanded view." },
         "elevation": { "type": "number", "default": 0, "description": "Degrees above horizon for expanded view." },
@@ -53,14 +53,33 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "color": { "type": "string", "default": "#f2f2f2" },
-        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+        "color": { "type": "string", "default": "#1a1a1a" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.04, "description": "Smoked glass — ~4% (issue 303)." },
         "reflectivity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Visible plate border (issue 305), default-on.",
+      "properties": {
+        "width": { "type": "number", "minimum": 0, "default": 0.0, "description": "Border thickness as a fraction of plate height; 0 = off (issue 326: slide + caption borders off by default)." },
+        "color": { "type": "string", "default": "#f2f2f2", "description": "Slide-plate border color; also the default caption plate fill + border (issue 324)." }
       }
     },
     "background": { "type": "string", "default": "#ffffff" },
     "juicy": { "type": "boolean", "default": false, "description": "Python-only per-channel color match." },
     "caption_defaults": { "$ref": "#/$defs/captionStyle" },
+    "caption_fade": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Caption fade-in timing during a transition (issue 302 §B.4 / 309).",
+      "properties": {
+        "window": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.9, "description": "Fraction of the morph (from the end) over which captions fade in." },
+        "stagger": { "type": "number", "minimum": 0, "exclusiveMaximum": 1, "default": 0.3, "description": "Back→front succession spread as a fraction of the fade window." },
+        "stagger_frames": { "type": "integer", "minimum": 0, "description": "Issue 309: back→front per-caption step in transition frames; overrides stagger when set." }
+      }
+    },
     "slides": {
       "type": "array",
       "minItems": 1,
@@ -113,9 +132,27 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "size": { "type": "number", "exclusiveMinimum": 0 },
-        "color": { "type": "string" },
-        "font": { "type": "string" }
+        "size": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Font size for the caption text (1em) in scene-point units."
+        },
+        "color": {
+          "type": "string",
+          "description": "Color for the caption text (e.g., hex string like '#222222')."
+        },
+        "font": {
+          "type": "string",
+          "description": "Font family name (e.g., 'sans-serif', 'Arial') or a path to a TrueType/OpenType font file."
+        },
+        "fill_color": {
+          "type": "string",
+          "description": "Caption plate FILL color (issue 324); defaults to scene.edge.color when omitted."
+        },
+        "border_color": {
+          "type": "string",
+          "description": "Caption plate BORDER color (issue 324); defaults to scene.edge.color when omitted."
+        }
       }
     }
   }

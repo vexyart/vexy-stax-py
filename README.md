@@ -7,9 +7,7 @@ transitions between them — from a single shared JSON scene format. This is the
 offline Python package; a browser sibling (`vexy-stax-js`) consumes the same
 scene format. See the repo-level `SPEC.md` for the binding contract.
 
-This package is currently a **scaffold**: scene model, geometry math, engine
-base/registry, and CLI are in place. The three render engines (Blender, pygfx,
-Playwright) are registered stubs that raise `NotImplementedError`.
+This package implements the scene model, geometry math, CLI, and three fully functional render backends: Blender, pygfx, and Playwright.
 
 ## Install
 
@@ -30,11 +28,12 @@ uv venv --python 3.12 && uv sync
 ## CLI
 
 ```bash
-vexy-stax render  scene.json --view expanded --engine pygfx   --out beauty.png
-vexy-stax render  scene.json --view compact  --engine blender --out stack.png
-vexy-stax video   scene.json --engine blender --out morph.mp4
-vexy-stax overlay scene.json --out flat.png          # pure-Pillow flat composite
-vexy-stax engines                                    # list available engines
+vexy-stax dir2scene assets/ --out scene.json             # generate scene JSON from directory
+vexy-stax render    scene.json --view expanded --engine pygfx   --out beauty.png
+vexy-stax render    scene.json --view compact  --engine blender --out stack.png
+vexy-stax video     scene.json --engine blender --out morph.mp4
+vexy-stax overlay   scene.json --out flat.png          # pure-Pillow flat composite
+vexy-stax engines                                      # list available engines
 ```
 
 Defaults: still ⇒ `pygfx`, video ⇒ `blender`. A missing/unimplemented engine
@@ -62,9 +61,9 @@ shared fixture vectors.
 src/vexy_stax/
 ├── scene.py        # pydantic v2 scene model + loader
 ├── geometry.py     # §3 camera/spacing/opacity math (pure, engine-agnostic)
-├── engines/        # base.py protocol + registry; blender/pygfx/playwright stubs
-├── images.py       # Pillow overlay compositing (reused from vexy-stax2)
-├── juicy.py        # per-channel color match (reused from vexy-stax2)
+├── engines/        # base.py protocol + registry; blender, pygfx, and playwright renderers
+├── images.py       # Composites 2D flat preview overlays using Pillow
+├── juicy.py        # Matches colors between 3D renders and 2D overlays
 └── cli.py          # fire + rich CLI
 ```
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 
 import fire
@@ -10,7 +12,16 @@ from rich.console import Console
 
 from vexy_stax.engines import available_engines, get_engine
 from vexy_stax.images import overlay_images, read_images
-from vexy_stax.scene import View, load_scene
+from vexy_stax.scene import (
+    Caption,
+    Floor,
+    Scene,
+    Size,
+    Slide,
+    Transition,
+    View,
+    load_scene,
+)
 
 console = Console()
 
@@ -54,6 +65,151 @@ class Stax:
             console.print("[bold]Available engines:[/bold] " + ", ".join(names))
         else:
             console.print("[yellow]No engines available.[/yellow] Install blender, pygfx, or playwright.")
+
+    def dir2scene(
+        self,
+        directory: str,
+        out: str = "scene.json",
+        view: View = "expanded",
+        width: int | None = None,
+        height: int | None = None,
+        gap: float | None = None,
+        distance: str | float = "100%",
+        angle: float = 60.0,
+        elevation: float = 0.0,
+        fov: float = 39.6,
+        background: str = "#ffffff",
+        floor_color: str = "#f2f2f2",
+        floor_opacity: float = 1.0,
+        floor_reflectivity: float = 0.5,
+        transition_kind: str | None = None,
+        transition_duration: float = 3.0,
+        transition_wait: float = 1.0,
+        transition_fps: int = 30,
+        transition_easing: str = "easeInOutCubic",
+        reverse: bool = False,
+        captions: bool = True,
+        juicy: bool = False,
+    ) -> None:
+        """Generate a scene JSON from a directory of images.
+
+        Scans the directory for image files (PNG, JPG, JPEG, WEBP), sorts them
+        naturally, auto-detects scene dimensions, and writes a valid scene JSON.
+        """
+        path = Path(directory)
+        if not path.is_dir():
+            raise FileNotFoundError(f"Directory not found: {directory}")
+
+        extensions = {".png", ".jpg", ".jpeg", ".webp"}
+        image_files = [p for p in path.iterdir() if p.is_file() and p.suffix.lower() in extensions]
+        if not image_files:
+            raise FileNotFoundError(f"No images found in directory: {directory}")
+
+        # Natural sort so 2.png comes before 10.png
+        def natural_sort_key(p: Path):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split(r"(\d+)", p.name)]
+
+        image_files.sort(key=natural_sort_key)
+        if reverse:
+            image_files.reverse()
+
+        infos = read_images(image_files)
+
+        out_path = Path(out).resolve()
+        if out_path.is_dir():
+            out_path = out_path / "scene.json"
+
+        json_dir = out_path.parent
+        json_dir.mkdir(parents=True, exist_ok=True)
+
+        detected_width = width or infos[0]["width"]
+        detected_height = height or infos[0]["height"]
+
+        if gap is None:
+            # Smart default gap: ~38% of scene width, rounded to a clean integer
+            gap = float(int(detected_width * 0.38))
+
+        # Find common prefix to clean up captions
+        filenames = [f.name for f in image_files]
+        prefix = ""
+        if len(filenames) > 1:
+            s1 = min(filenames)
+            s2 = max(filenames)
+            for i, c in enumerate(s1):
+                if i >= len(s2) or c != s2[i]:
+                    prefix = s1[:i]
+                    break
+            else:
+                prefix = s1
+
+        slides = []
+        for info, img_file in zip(infos, image_files, strict=True):
+            # Compute relative path from scene JSON parent to the image file
+            rel_src = os.path.relpath(info["path"], json_dir)
+
+            caption_obj = None
+            if captions:
+                # Strip prefix, strip numbers/symbols, title-case
+                name = img_file.name
+                if prefix and name.startswith(prefix):
+                    name = name[len(prefix) :]
+                name = Path(name).stem
+                name = re.sub(r"^[\d\s\-_]+", "", name)
+                name = re.sub(r"[\d\s\-_]+$", "", name)
+                name = re.sub(r"[\-_]", " ", name)
+                name = re.sub(r"\s+", " ", name).strip()
+                caption_text = name.title() or "Slide"
+                caption_obj = Caption(text=caption_text, show_in="expanded")
+
+            slides.append(
+                Slide(
+                    src=rel_src,
+                    opacity=1.0,
+                    caption=caption_obj,
+                )
+            )
+
+        from vexy_stax.scene import Camera
+
+        camera = Camera(
+            gap=gap,
+            distance=distance,
+            angle=angle,
+            elevation=elevation,
+            fov=fov,
+        )
+
+        floor = Floor(
+            color=floor_color,
+            opacity=floor_opacity,
+            reflectivity=floor_reflectivity,
+        )
+
+        transition = None
+        if transition_kind is not None:
+            transition = Transition(
+                kind=transition_kind,  # type: ignore[arg-type]
+                duration=transition_duration,
+                wait=transition_wait,
+                fps=transition_fps,
+                easing=transition_easing,  # type: ignore[arg-type]
+            )
+
+        scene_obj = Scene(
+            version=1,
+            view=view,
+            size=Size(width=detected_width, height=detected_height),
+            camera=camera,
+            floor=floor,
+            background=background,
+            transition=transition,
+            juicy=juicy,
+            slides=slides,
+        )
+
+        scene_json = scene_obj.model_dump_json(by_alias=True, indent=2)
+        out_path.write_text(scene_json, encoding="utf-8")
+        print(str(out_path.resolve()))
 
     def _run(self, name: str, action, out: str) -> None:
         """Look up ENGINE and run ACTION, reporting NotImplemented/missing cleanly."""

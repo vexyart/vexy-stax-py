@@ -38,7 +38,7 @@ class Camera(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     gap: float = Field(default=1920, ge=0, description="Points between adjacent plates (expanded).")
-    distance: Distance = Field(default="90%", description='Absolute points or viewport-fit "P%".')
+    distance: Distance = Field(default="100%", description='Absolute points or viewport-fit "P%".')
     angle: float = Field(default=60, description="Azimuth degrees for expanded view.")
     elevation: float = Field(default=0, description="Degrees above horizon for expanded view.")
     fov: float = Field(default=39.6, gt=0, lt=180)
@@ -57,23 +57,66 @@ class Transition(BaseModel):
 
 
 class Floor(BaseModel):
-    """Floor plane appearance."""
+    """Floor plane appearance — smoked glass that blurrily reflects the plates (issue 303 §1).
+
+    Default is a 'just so visible' dark smoked glass (4% opacity) with reflective,
+    blurred plate reflections. ``reflectivity`` scales the reflection strength.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    color: str = "#f2f2f2"
-    opacity: float = Field(default=1.0, ge=0, le=1)
+    color: str = "#1a1a1a"  # smoked-glass tint (dark; barely visible on a light background)
+    opacity: float = Field(default=0.04, ge=0, le=1)  # ~4% — smoked glass, just so visible
     reflectivity: float = Field(default=0.5, ge=0, le=1)
 
 
+class Edge(BaseModel):
+    """Optional plate border (issue 305) — a thin frame around each plate's rectangle.
+
+    Off by default (issue 326: ``width == 0`` ⇒ no slide-plate border and no caption-plate
+    border). Set ``width > 0`` to draw a frame in ``color`` around both.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    width: float = Field(default=0.0, ge=0, description="Border thickness, fraction of plate height (0 = off).")
+    color: str = "#f2f2f2"  # slide-plate + caption border color when enabled (issue 324 default)
+
+
 class CaptionStyle(BaseModel):
-    """Engine-best-effort caption styling."""
+    """Engine-best-effort caption styling (text + plate fill/border colors).
+
+    ``color`` is the caption TEXT color; ``fill_color``/``border_color`` are the caption
+    PLATE background + border colors (issue 324, each overridable). When fill/border are
+    unset, engines fall back to ``scene.edge.color`` (so by default the caption plate fill,
+    caption border and slide border all match).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     size: float | None = Field(default=None, gt=0)
-    color: str | None = None
+    color: str | None = None  # caption TEXT color
     font: str | None = None
+    fill_color: str | None = None  # caption plate fill (issue 324; default scene.edge.color)
+    border_color: str | None = None  # caption plate border (issue 324; default scene.edge.color)
+
+
+class CaptionFade(BaseModel):
+    """Customizable caption fade-in timing during a transition (issue 302 §B.4)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    window: float = Field(
+        default=0.9, gt=0, le=1, description="Fraction of the morph (from the end) over which captions fade in."
+    )
+    stagger: float = Field(
+        default=0.3, ge=0, lt=1, description="Back→front succession spread, as a fraction of the fade window."
+    )
+    stagger_frames: int | None = Field(
+        default=None,
+        ge=0,
+        description="Issue 309: back→front per-caption step in transition FRAMES; overrides `stagger` when set.",
+    )
 
 
 class OpacityPerView(BaseModel):
@@ -126,9 +169,11 @@ class Scene(BaseModel):
     camera: Camera = Field(default_factory=Camera)
     transition: Transition | None = None
     floor: Floor = Field(default_factory=Floor)
+    edge: Edge = Field(default_factory=Edge)  # issue 305: visible plate border (default-on)
     background: str = "#ffffff"
     juicy: bool = False
     caption_defaults: CaptionStyle | None = None
+    caption_fade: CaptionFade | None = None
     slides: list[Slide] = Field(min_length=1, description="Ordered back-to-front; index 0 is farthest.")
     # Schema permits a "$schema" pointer key; accept and ignore it.
     schema_ref: str | None = Field(default=None, alias="$schema")

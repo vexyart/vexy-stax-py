@@ -21,6 +21,12 @@ uv venv --python 3.12 --clear
 echo -e "${YELLOW}→ Syncing dependencies (uv sync)...${NC}"
 uv sync
 
+# Step 2b: also install editable into the system/user Python so that
+# scripts like example.py can be run directly (e.g. ./vexy-stax-py/example.py)
+# without activating the venv first.
+echo -e "${YELLOW}→ Installing vexy-stax into system Python (uv pip install --system -e .)...${NC}"
+uv pip install --system -e . || echo -e "${YELLOW}⚠ System install skipped (no --system access) — activate .venv to use scripts directly.${NC}"
+
 # Step 3: Chromium for the playwright engine/tests.
 echo -e "${YELLOW}→ Installing Chromium for Playwright...${NC}"
 uv run playwright install chromium

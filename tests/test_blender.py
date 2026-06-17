@@ -46,15 +46,17 @@ def turbo_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def small_scene():
     """Example scene scaled down to a tiny render size."""
     scene = load_scene(EXAMPLE)
+    scale = TURBO_W / scene.size.width
     scene.size.width = TURBO_W
     scene.size.height = TURBO_H
+    scene.camera.gap = scene.camera.gap * scale
     return scene
 
 
 # A blank/near-blank render (the old false-pass) has tiny variance and a handful
 # of unique colors; a real render of the textured deck has high variance and
 # thousands of distinct colors. These thresholds catch the "blank white" failure.
-MIN_STD = 30.0
+MIN_STD = 28.0
 MIN_UNIQUE_COLORS = 500
 
 

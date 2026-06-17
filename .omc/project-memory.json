@@ -1,0 +1,123 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1781708947934,
+  "projectRoot": "/Users/adam/Developer/vcs3/github.vexyart/vexy-stax-dev/vexy-stax-py",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 3,
+      "lastAccessed": 1781708947930,
+      "keyFiles": [
+        "vexy_stax-3.0.0-py3-none-any.whl",
+        "vexy_stax-3.0.0.tar.gz"
+      ]
+    },
+    "outputs": {
+      "path": "outputs",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1781708947930,
+      "keyFiles": [
+        "benchmark.txt"
+      ]
+    },
+    "schema": {
+      "path": "schema",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1781708947930,
+      "keyFiles": [
+        "vexy-stax-scene.schema.json"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1781708947931,
+      "keyFiles": []
+    },
+    "testdata": {
+      "path": "testdata",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1781708947931,
+      "keyFiles": [
+        "airbl-lores.scene.json",
+        "airbl.scene.json"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 9,
+      "lastAccessed": 1781708947931,
+      "keyFiles": [
+        "conftest.py",
+        "test_blender.py",
+        "test_cli.py",
+        "test_geometry.py",
+        "test_images.py"
+      ]
+    },
+    "schema/examples": {
+      "path": "schema/examples",
+      "purpose": "Example code",
+      "fileCount": 1,
+      "lastAccessed": 1781708947931,
+      "keyFiles": [
+        "airbl.scene.json"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

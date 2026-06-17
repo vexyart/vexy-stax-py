@@ -1,5 +1,5 @@
 # this_file: tests/test_juicy.py
-"""Tests for vexy_stax.juicy module (ported from vexy-stax2-py)."""
+"""Tests for the juicy module (color matching and color correction)."""
 
 import cv2
 import numpy as np

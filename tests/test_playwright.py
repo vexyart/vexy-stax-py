@@ -57,8 +57,10 @@ def small_scene():
     from vexy_stax.scene import load_scene
 
     scene = load_scene(EXAMPLE)
+    scale = RENDER_W / scene.size.width
     scene.size.width = RENDER_W
     scene.size.height = RENDER_H
+    scene.camera.gap = scene.camera.gap * scale
     return scene
 
 

@@ -223,8 +223,17 @@ def _scene_config(scene: Scene, base_url: str) -> dict:
 
 
 def _frame_state_dict(state: geo.FrameState) -> dict:
-    """Convert a Python FrameState to the JS ``frameState`` plain-object shape."""
-    return asdict(state)
+    """Convert a Python FrameState to the JS ``frameState`` plain-object shape.
+
+    JS geometry's ``frameStateAt`` emits ``captionOpacities`` (camelCase) and
+    ``stage.js`` reads ``state.captionOpacities``.  Python's ``asdict`` produces
+    ``caption_opacities`` (snake_case), which JS silently misses and falls back to
+    recomputing from ``t``.  Rename the key here so the per-frame FrameState value
+    reaches the JS stage correctly.
+    """
+    d = asdict(state)
+    d["captionOpacities"] = d.pop("caption_opacities")
+    return d
 
 
 def _require_ffmpeg() -> str:
@@ -344,20 +353,22 @@ class PlaywrightEngine:
             raise ValueError("scene has no transition; nothing to animate (use render_image)")
         _require_ffmpeg()
         plan = geo.frame_plan(scene)
-        factors = _morph_factors(scene)
         if not plan:
             raise ValueError("transition produced no frames")
 
         # Mount once; the deck's initial view is irrelevant since every frame is
-        # driven explicitly via applyFrameState.
+        # driven explicitly via applyFrameState. Caption opacity travels in each
+        # FrameState (caption_opacities -> captionOpacities, see _frame_state_dict),
+        # so the morph-factor arg to applyFrameState is only the JS-side fallback and
+        # is never consulted here — pass 0.0.
         browser = _Browser(scene, "compact")
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
             with tempfile.TemporaryDirectory(prefix="vexy_stax_pw_") as tmp:
                 tmp_dir = Path(tmp)
-                for i, (state, t) in enumerate(zip(plan, factors, strict=True)):
-                    browser.apply_frame(state, t)
+                for i, state in enumerate(plan):
+                    browser.apply_frame(state, 0.0)
                     im = browser.capture()
                     im.convert("RGB").save(tmp_dir / f"frame_{i:05d}.png", "PNG")
                 _encode_video(tmp_dir, scene.transition.fps, out)
@@ -365,27 +376,6 @@ class PlaywrightEngine:
             browser.close()
         if not out.exists() or out.stat().st_size == 0:
             raise RuntimeError(f"ffmpeg finished but {out} is missing/empty")
-
-
-def _morph_factors(scene: Scene) -> list[float]:
-    """Per-frame morph factor (0=compact, 1=expanded), matching ``frame_plan``.
-
-    Mirrors ``geometry.frame_plan``'s leg/hold layout so caption fades stay in
-    lockstep with the camera/opacity morph it produced (same logic as pygfx).
-    """
-    tr = scene.transition
-    assert tr is not None
-    leg_frames = round(tr.duration * tr.fps)
-    wait_frames = round(tr.wait * tr.fps)
-    legs = geo._LEGS[tr.kind]
-    factors: list[float] = []
-    for start, end in legs:
-        for i in range(leg_frames):
-            p = i / leg_frames if leg_frames else 0.0
-            eased = geo.ease(tr.easing, p)
-            factors.append(start + (end - start) * eased)
-        factors.extend(end for _ in range(wait_frames))
-    return factors
 
 
 def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
@@ -400,10 +390,14 @@ def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
         str(frame_dir / "frame_%05d.png"),
         "-c:v",
         "libx264",
+        "-crf",
+        "18",
         "-pix_fmt",
         "yuv420p",
         "-vf",
         "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        "-movflags",
+        "+faststart",
         str(out),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
