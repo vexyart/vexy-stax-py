@@ -1,80 +1,32 @@
-#!/bin/bash
-# this_file: vexy-stax-py/build.sh
-# Build script for vexy-stax-py
-
+#!/usr/bin/env bash
+# this_file: build.sh
+# Build vexy-stax: lint → test → build wheel+sdist. Fails on any error.
+set -euo pipefail
 cd "$(dirname "$0")"
 
-set -e  # Exit on error
+# Color output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Building vexy-stax-py"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
+echo -e "${BLUE}Building vexy-stax...${NC}"
 
-# Check if uv is installed (required)
-if ! command -v uv &> /dev/null; then
-    echo "❌ Error: uv is not installed"
-    echo "   Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    exit 1
-fi
+# Step 1: lint + format.
+echo -e "${YELLOW}→ Linting (ruff check --fix)...${NC}"
+uvx ruff check --fix src tests
+echo -e "${YELLOW}→ Formatting (ruff format)...${NC}"
+uvx ruff format src tests
 
-echo "✓ uv $(uv --version | head -n1)"
-echo
+# Step 2: tests (default selection excludes 'slow' video renders).
+echo -e "${YELLOW}→ Running tests...${NC}"
+uv run pytest -q
 
-# Sync dependencies
-echo "📦 Syncing dependencies..."
-uv sync --quiet
-echo
-
-# Run tests
-echo "🧪 Running tests..."
-uv run pytest -v || {
-    echo
-    echo "⚠️  Tests failed, but continuing with build..."
-    echo
-}
-
-# Build package
-echo "🔨 Building package..."
+# Step 3: build wheel + sdist into dist/. Clean first so publish never sees a
+# stale build (e.g. a prior dev-version wheel PyPI would reject as a local version).
+echo -e "${YELLOW}→ Building wheel + sdist (uv build)...${NC}"
+rm -rf dist
 uv build
 
-echo
-
-# Verify output
-if [ ! -d "dist" ]; then
-    echo "❌ Error: dist/ directory not created"
-    exit 1
-fi
-
-# Count artifacts
-WHEEL_COUNT=$(find dist -name "*.whl" | wc -l | tr -d ' ')
-SDIST_COUNT=$(find dist -name "*.tar.gz" | wc -l | tr -d ' ')
-
-if [ "$WHEEL_COUNT" -eq 0 ] && [ "$SDIST_COUNT" -eq 0 ]; then
-    echo "❌ Error: No build artifacts found in dist/"
-    exit 1
-fi
-
-# Show build stats
-DIST_SIZE=$(du -sh dist/ | cut -f1)
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ Build complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Output:  dist/"
-echo "  Size:    $DIST_SIZE"
-echo "  Wheels:  $WHEEL_COUNT"
-echo "  SDist:   $SDIST_COUNT"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
-echo "To install locally:"
-echo "  pip install dist/*.whl"
-echo
-echo "To publish to PyPI:"
-echo "  # Create git tag first:"
-echo "  git tag v0.1.0"
-echo "  git push origin v0.1.0"
-echo "  # GitHub Actions will auto-publish"
-echo
-echo "Note: Python package has no web UI. Use vexy-stax-js for the web app."
-echo
+echo -e "${GREEN}✅ Build completed successfully${NC}"
+ls -la dist/

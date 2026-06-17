@@ -1,14 +1,10 @@
-# this_file: vexy-stax-py/.github/workflows/release.yml
+# this_file: .github/workflows/release.yml
 name: Release
 
 on:
   push:
     tags:
       - 'v*'
-
-permissions:
-  contents: write
-  id-token: write
 
 jobs:
   build:
@@ -38,6 +34,8 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/p/vexy-stax
+    permissions:
+      id-token: write  # PyPI Trusted Publishing (OIDC); no PYPI_TOKEN needed
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -50,6 +48,8 @@ jobs:
   github-release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Create the GitHub Release
     steps:
       - uses: actions/checkout@v4
 

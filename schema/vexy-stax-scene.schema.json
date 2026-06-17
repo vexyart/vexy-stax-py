@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vexy.art/schema/vexy-stax-scene.schema.json",
+  "title": "Vexy Stax Scene",
+  "description": "Shared scene format v1 for vexy-stax-py and vexy-stax-js. See SPEC.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "slides"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "view": {
+      "description": "Initial view to render.",
+      "enum": ["expanded", "compact"],
+      "default": "expanded"
+    },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "default": 1920 },
+        "height": { "type": "integer", "minimum": 1, "default": 1080 }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gap": { "type": "number", "minimum": 0, "default": 1920, "description": "Points between adjacent plates in expanded view." },
+        "distance": {
+          "description": "Camera distance: absolute points as a number/string, or viewport-fit percentage like \"90%\".",
+          "anyOf": [{ "type": "number" }, { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?%?$" }],
+          "default": "90%"
+        },
+        "angle": { "type": "number", "default": 60, "description": "Azimuth degrees for expanded view." },
+        "elevation": { "type": "number", "default": 0, "description": "Degrees above horizon for expanded view." },
+        "fov": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 180, "default": 39.6 }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["expand", "collapse", "expand_collapse", "collapse_expand"] },
+        "duration": { "type": "number", "exclusiveMinimum": 0, "default": 3.0, "description": "Seconds per leg." },
+        "wait": { "type": "number", "minimum": 0, "default": 1.0, "description": "Hold seconds at the far end." },
+        "fps": { "type": "integer", "minimum": 1, "default": 30 },
+        "easing": { "enum": ["linear", "easeInOutCubic", "easeOutCubic", "easeInCubic"], "default": "easeInOutCubic" }
+      }
+    },
+    "floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "type": "string", "default": "#f2f2f2" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+        "reflectivity": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 }
+      }
+    },
+    "background": { "type": "string", "default": "#ffffff" },
+    "juicy": { "type": "boolean", "default": false, "description": "Python-only per-channel color match." },
+    "caption_defaults": { "$ref": "#/$defs/captionStyle" },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered back-to-front: index 0 is farthest from the camera.",
+      "items": { "$ref": "#/$defs/slide" }
+    }
+  },
+  "$defs": {
+    "slide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["src"],
+      "properties": {
+        "src": { "type": "string", "description": "Path relative to the scene file, or a data: URI." },
+        "gap": {
+          "description": "Per-slide gap override (points). null uses camera.gap.",
+          "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+          "default": null
+        },
+        "opacity": { "$ref": "#/$defs/opacity" },
+        "caption": { "$ref": "#/$defs/caption" }
+      }
+    },
+    "opacity": {
+      "description": "Constant scalar, or per-view values interpolated during transitions.",
+      "default": 1.0,
+      "anyOf": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expanded": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+            "compact": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+          }
+        }
+      ]
+    },
+    "caption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "show_in": { "enum": ["expanded", "compact", "both", "none"], "default": "expanded" },
+        "style": { "$ref": "#/$defs/captionStyle" }
+      }
+    },
+    "captionStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "color": { "type": "string" },
+        "font": { "type": "string" }
+      }
+    }
+  }
+}

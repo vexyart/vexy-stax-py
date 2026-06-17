@@ -1,4 +1,4 @@
-# this_file: vexy-stax-py/.github/workflows/ci.yml
+# this_file: .github/workflows/ci.yml
 name: CI
 
 on:
@@ -25,8 +25,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
+      - name: Lint
+        run: uvx ruff check src tests
+
       - name: Run tests
-        run: uv run pytest -v
+        # Engine tests (blender/pygfx/playwright) self-skip when their backend
+        # is unavailable on the runner, so the suite stays green in CI.
+        run: uv run pytest
 
       - name: Validate package build
         run: uv build

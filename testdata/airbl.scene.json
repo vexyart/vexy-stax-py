@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "view": "expanded",
+  "size": { "width": 1246, "height": 806 },
+  "camera": { "gap": 480, "distance": "90%", "angle": 60, "elevation": 0, "fov": 39.6 },
+  "transition": { "kind": "expand_collapse", "duration": 3.0, "wait": 1.0, "fps": 30, "easing": "easeInOutCubic" },
+  "floor": { "color": "#f2f2f2", "opacity": 1.0, "reflectivity": 0.5 },
+  "background": "#ffffff",
+  "juicy": false,
+  "caption_defaults": { "size": 28, "color": "#222222" },
+  "slides": [
+    { "src": "airbl-lores/airbl-020-source.png",   "caption": { "text": "Source",   "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-030-pink.png",     "caption": { "text": "Pink",     "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-040-stars.png",    "caption": { "text": "Stars",    "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-050-backdrop.png", "caption": { "text": "Backdrop", "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-060-outline.png",  "caption": { "text": "Outline",  "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-070-inline.png",   "caption": { "text": "Inline",   "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-080-halftone.png", "opacity": { "expanded": 1.0, "compact": 0.4 }, "caption": { "text": "Halftone", "show_in": "expanded" } },
+    { "src": "airbl-lores/airbl-090-ui.png",       "caption": { "text": "UI",       "show_in": "expanded" } }
+  ]
+}

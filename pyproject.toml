@@ -1,4 +1,3 @@
-# this_file: pyproject.toml
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -6,78 +5,74 @@ build-backend = "hatchling.build"
 [project]
 name = "vexy-stax"
 dynamic = ["version"]
-description = "Headless 3D renderer for layered image stacks with depth effects (pygfx + Playwright)"
+description = "Render layered PNGs as 3D glass plates in two views, from a shared JSON scene format"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
-license = {file = "LICENSE"}
-authors = [
-    {name = "Fontlab Ltd.", email = "support@fontlab.com"},
-]
-keywords = ["image", "stacking", "automation", "playwright", "3d", "visualization"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Typing :: Typed",
-]
 dependencies = [
-    "pillow>=11.0.0",
-    "fire>=0.6.0",
-    "numpy>=1.26.0",
-    "imageio[ffmpeg]>=2.36.0",
-    "pydantic>=2.8.0",
-    "pygfx>=0.15.0",
-    "wgpu[glfw]>=0.17.0",
-    "rich>=14.2.0",
+    "fire",
+    "rich",
+    "pillow",
+    "numpy",
+    "pydantic>=2",
+    "opencv-python-headless",
+    "pygfx>=0.16.0",
+    "pylinalg>=0.6.8",
+    "playwright>=1.60.0",
 ]
 
-[project.optional-dependencies]
-browser = [
-    "playwright>=1.40.0",
-]
-all = [
-    "playwright>=1.40.0",
-]
+[project.urls]
+Homepage = "https://github.com/vexyart/vexy-stax-py"
+Repository = "https://github.com/vexyart/vexy-stax-py"
 
 [project.scripts]
 vexy-stax = "vexy_stax.cli:main"
-vexy-stax-create-test = "vexy_stax.create_test_images:main"
 
 [tool.hatch.version]
 source = "vcs"
+fallback-version = "3.0.0"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/vexy_stax/_version.py"
 
-[tool.hatch.envs."hatch-test"]
-skip-install = true
+[tool.hatch.build.targets.wheel]
+packages = ["src/vexy_stax"]
+
+[tool.hatch.envs.default]
 dependencies = [
-  "pillow",
-  "pytest",
-  "numpy",
-  "imageio",
-  "pydantic",
-  "fire",
-  "playwright",
-  "pygfx",
-  "wgpu",
+    "pytest",
+    "pytest-cov",
 ]
 
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+cov = "pytest --cov=vexy_stax {args:tests}"
+
 [tool.pytest.ini_options]
-pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-v --tb=short -m 'not slow'"
 markers = [
-    "unit: Unit tests (isolated, fast, no external dependencies)",
-    "integration: Integration tests (multiple components, may use stubs)",
-    "gpu_required: Tests requiring GPU hardware (skipped if unavailable)",
-    "slow: Slow tests (>1s per test)",
-    "playwright: Tests requiring Playwright browser automation",
+    "blender: tests that invoke the real Blender binary (skipped if absent)",
+    "pygfx: tests that drive the pygfx GPU renderer (skipped if not importable)",
+    "playwright: tests that drive the JS build in headless Chromium (skipped if unavailable)",
+    "slow: long-running tests (e.g. video renders); opt-in via -m slow",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
 ]
