@@ -422,14 +422,16 @@ def compact_camera(scene: Scene, viewport_aspect: float | None = None) -> Camera
     """
     cam = scene.camera
     depth = stack_depth(scene, "compact")
-    # Issue 332: the frontmost COMPOSITE the head-on camera frames is the slide plate plus
-    # (captions on) its on-floor caption plate stacked below it. The composite spans full
-    # width ``W`` and height ``H + lift`` (lift == one caption-plate height), vertically
-    # centered at ``Y = lift/2`` (floor at ``-H/2`` up to the lifted slide top ``lift+H/2``).
-    # Aim the camera at that composite center so neither the slide nor the caption row crops.
+    # Issue 337: the compact view frames ONLY the frontmost SLIDE plate — NOT the composite
+    # with its caption row. Captions are invisible in the compact view (they fade in only as
+    # the deck expands), so reserving the caption-plate height here just padded the frame
+    # (bottom, and via the aspect fit, the sides too). The slide plate is lifted by ``lift``
+    # (issue 332: it sits on top of the on-floor caption plate), so its center is at ``Y = lift``
+    # and it spans height ``H``. Aim at the slide center and fit ``H`` so the slide fills the
+    # frame tight with no caption gap. (The expanded view still frames the full composite, where
+    # the captions ARE visible.)
     lift = slide_lift(scene)
-    composite_h = scene.size.height + lift
-    target = (0.0, lift / 2.0, -depth / 2.0)
+    target = (0.0, lift, -depth / 2.0)
 
     is_percent = False
     pct_val = 90.0
@@ -443,16 +445,17 @@ def compact_camera(scene: Scene, viewport_aspect: float | None = None) -> Camera
                 pct_val = 90.0
 
     if is_percent:
-        # Dual-axis crop-free fit (SPEC.md §3, issue 302 §1): fit the frontmost
-        # COMPOSITE (width ``W``, height ``H + lift``) so the *limiting* axis touches P% of the
-        # frame and the other axis only ever has extra padding (never a crop). theta_horiz =
-        # fov; theta_vert derived from the VIEWPORT aspect; distance = max(d_w, d_h).
+        # Dual-axis crop-free fit (SPEC.md §3, issue 302 §1, issue 337): fit the frontmost
+        # SLIDE plate (width ``W``, height ``H`` — NOT the caption composite) so the *limiting*
+        # axis touches P% of the frame and the other axis only ever has extra padding (never a
+        # crop). theta_horiz = fov; theta_vert derived from the VIEWPORT aspect; distance =
+        # max(d_w, d_h).
         hfov = math.radians(cam.fov)
         aspect = viewport_aspect if viewport_aspect else scene.size.width / scene.size.height
         vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
         frac = pct_val / 100.0
         d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
-        d_h = composite_h / (2.0 * math.tan(vfov / 2.0) * frac)
+        d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)
         dist_to_Z0 = max(d_w, d_h)
         distance = dist_to_Z0 + depth / 2.0
     else:

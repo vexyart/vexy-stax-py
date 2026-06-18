@@ -83,12 +83,13 @@ def test_compact_camera_head_on_plus_z(scene: Scene) -> None:
     assert cam.position[2] > cam.target[2]
     assert cam.position[0] == pytest.approx(cam.target[0])
     assert cam.position[1] == pytest.approx(cam.target[1])
-    # Issue 332: the head-on target is the COMPOSITE (slide + on-floor caption) center, lifted
-    # to Y = lift/2; X stays centered at 0.
+    # Issue 337: the compact head-on target is the SLIDE plate center (lifted to Y = lift by
+    # issue 332's stacked layout), NOT the composite center — captions are invisible in compact
+    # so their reserved space must not pad the frame. X stays centered at 0.
     lift = g.slide_lift(scene)
-    assert cam.target[1] == pytest.approx(lift / 2.0)
-    # Dual-axis crop-free fit (issue 302 §1, 303 §2, 332): distance = max(d_w, d_h) + depth/2,
-    # where d_h fits the FULL composite height (H + lift), not just the slide.
+    assert cam.target[1] == pytest.approx(lift)
+    # Dual-axis crop-free fit (issue 302 §1, 337): distance = max(d_w, d_h) + depth/2, where d_h
+    # fits ONLY the slide height H (not H + lift).
     import math
 
     frac = float(str(scene.camera.distance).rstrip("%")) / 100.0  # "100%" -> 1.0 (fit tight)
@@ -96,25 +97,23 @@ def test_compact_camera_head_on_plus_z(scene: Scene) -> None:
     aspect = scene.size.width / scene.size.height
     vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
     d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
-    d_h = (scene.size.height + lift) / (2.0 * math.tan(vfov / 2.0) * frac)
+    d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)
     expected_distance = max(d_w, d_h) + g.stack_depth(scene, "compact") / 2.0
     assert cam.position[2] - cam.target[2] == pytest.approx(expected_distance)
 
 
 def test_compact_camera_no_crop_limiting_axis_at_pct(scene: Scene) -> None:
-    """Composite (slide + caption row) fits with no crop; limiting axis touches P% (332)."""
+    """Slide plate (only) fits with no crop; limiting axis touches P% (issue 337)."""
     import math
 
     frac = float(str(scene.camera.distance).rstrip("%")) / 100.0
     cam = g.compact_camera(scene)
-    lift = g.slide_lift(scene)
-    composite_h = scene.size.height + lift
     d = cam.position[2] - 0.0  # camera->front plate (Z=0) along view axis
     hfov = math.radians(scene.camera.fov)
     aspect = scene.size.width / scene.size.height
     vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
     fill_w = (scene.size.width / 2.0) / (d * math.tan(hfov / 2.0))
-    fill_h = (composite_h / 2.0) / (d * math.tan(vfov / 2.0))
+    fill_h = (scene.size.height / 2.0) / (d * math.tan(vfov / 2.0))
     assert fill_w <= 1.0 + 1e-9 and fill_h <= 1.0 + 1e-9  # no crop on either axis
     assert max(fill_w, fill_h) == pytest.approx(frac)  # limiting axis touches exactly P%
 

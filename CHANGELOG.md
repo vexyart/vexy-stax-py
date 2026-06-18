@@ -4,6 +4,20 @@
 
 All notable changes to this project are documented here.
 
+## [3.0.12] — issue 337
+
+### Fixed
+
+- **Compact view reserved empty caption space** (337): after issue 332 moved the captions between
+  the floor and the slide plates, `compact_camera` framed the slide+caption COMPOSITE (height
+  `H + lift`, aimed at `Y = lift/2`) — but captions are invisible in the compact view (they fade
+  in only as the deck expands), so the reserved caption-plate height padded the frame at the bottom
+  and (via the aspect fit) the sides. `compact_camera` now fits ONLY the frontmost SLIDE plate
+  (height `H`, aimed at the slide center `Y = lift`), so the slide fills the frame tight with no
+  caption gap. The expanded view still frames the full composite (where the captions ARE visible).
+  Verified: pygfx + playwright + blender compact stills fill the frame edge-to-edge with no padding;
+  geometry tests updated. Mirrored in `vexy-stax-js` (`compactCamera`).
+
 ## [3.0.11] — issue 335
 
 ### Added
