@@ -19,23 +19,23 @@ def test_example_exists() -> None:
     assert EXAMPLE.is_file(), f"missing fixture: {EXAMPLE}"
 
 
-def test_loads_nine_slides() -> None:
+def test_loads_eight_slides() -> None:
     scene = load_scene(EXAMPLE)
     assert isinstance(scene, Scene)
     assert scene.version == 1
-    assert len(scene.slides) == 9
+    assert len(scene.slides) == 8
 
 
 def test_back_to_front_order() -> None:
     scene = load_scene(EXAMPLE)
-    # index 0 farthest (backdrop), last closest (ui)
-    assert "010-back" in scene.slides[0].src
+    # index 0 farthest (source image), last closest (ui)
+    assert "020-source" in scene.slides[0].src
     assert "090-ui" in scene.slides[-1].src
 
 
 def test_opacity_resolution_halftone() -> None:
     scene = load_scene(EXAMPLE)
-    halftone = scene.slides[7]  # airbl-080-halftone
+    halftone = scene.slides[6]  # airbl-080-halftone
     assert "080-halftone" in halftone.src
     assert isinstance(halftone.opacity, OpacityPerView)
     assert halftone.resolved_opacity("compact") == pytest.approx(0.4)
@@ -145,6 +145,53 @@ def test_edge_customizable_and_strict() -> None:
     assert scene.edge.color == "#ff0000"
     with pytest.raises(ValidationError):  # extra="forbid"
         Scene.model_validate({"version": 1, "edge": {"thickness": 1}, "slides": [{"src": "a.png"}]})
+
+
+def test_captions_toggle_defaults_true_and_parses() -> None:
+    """Issue 332: global `captions` defaults to true and parses an explicit bool."""
+    default = Scene.model_validate({"version": 1, "slides": [{"src": "a.png"}]})
+    assert default.captions is True  # default preserves prior captioned behavior
+    off = Scene.model_validate({"version": 1, "captions": False, "slides": [{"src": "a.png"}]})
+    assert off.captions is False
+    on = Scene.model_validate({"version": 1, "captions": True, "slides": [{"src": "a.png"}]})
+    assert on.captions is True
+    # A non-coercible captions value fails loud at the boundary (like the other bool fields).
+    with pytest.raises(ValidationError):
+        Scene.model_validate({"version": 1, "captions": [1, 2], "slides": [{"src": "a.png"}]})
+
+
+def test_video_section_defaults() -> None:
+    """Issue 335 §3: the video section is always present with behavior-preserving defaults."""
+    scene = Scene.model_validate({"version": 1, "slides": [{"src": "a.png"}]})
+    assert scene.video.width is None  # null ⇒ fall back to size
+    assert scene.video.height is None
+    assert scene.video.fps is None  # null ⇒ transition.fps (else 30)
+    assert scene.video.frames is None  # null ⇒ derive from transition.duration
+    assert scene.video.first_hold == 10  # held first/last stills default-on
+    assert scene.video.last_hold == 10
+
+
+def test_video_section_parses_and_is_strict() -> None:
+    """Issue 335 §3: explicit video params parse; unknown keys fail loud (extra='forbid')."""
+    raw = {
+        "version": 1,
+        "video": {"width": 800, "height": 600, "fps": 24, "frames": 50, "first_hold": 3, "last_hold": 7},
+        "slides": [{"src": "a.png"}],
+    }
+    scene = Scene.model_validate(raw)
+    assert (scene.video.width, scene.video.height) == (800, 600)
+    assert scene.video.fps == 24
+    assert scene.video.frames == 50
+    assert (scene.video.first_hold, scene.video.last_hold) == (3, 7)
+    with pytest.raises(ValidationError):
+        Scene.model_validate({"version": 1, "video": {"bogus": 1}, "slides": [{"src": "a.png"}]})
+    # Held counts may be 0 (holds off) but not negative; fps/frames must be >= 1.
+    zero = Scene.model_validate({"version": 1, "video": {"first_hold": 0}, "slides": [{"src": "a.png"}]})
+    assert zero.video.first_hold == 0
+    with pytest.raises(ValidationError):
+        Scene.model_validate({"version": 1, "video": {"first_hold": -1}, "slides": [{"src": "a.png"}]})
+    with pytest.raises(ValidationError):
+        Scene.model_validate({"version": 1, "video": {"fps": 0}, "slides": [{"src": "a.png"}]})
 
 
 def test_caption_fade_stagger_frames() -> None:

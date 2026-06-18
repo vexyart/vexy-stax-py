@@ -217,6 +217,12 @@ def _scene_config(scene: Scene, base_url: str) -> dict:
     config = scene.model_dump(by_alias=False, exclude_none=True)
     config.pop("schema_ref", None)
     config.pop("$schema", None)
+    # Issue 335 §3: the `video` section (dimensions/fps/holds) is consumed PYTHON-side — this
+    # engine computes the frame plan (incl. held first/last stills) here and pushes each state
+    # via applyFrameState, so the JS stage never reads it. Drop it so the strict JS parser
+    # (parseScene rejects unknown keys) still accepts the config until vexy-stax-js mirrors the
+    # field (see issue 335 JS-parity follow-up).
+    config.pop("video", None)
     for slide_cfg, slide in zip(config["slides"], scene.slides, strict=True):
         slide_cfg["src"] = _slide_src_url(slide, base_url)
     return config
@@ -316,12 +322,17 @@ class _Browser:
             [_frame_state_dict(state), t],
         )
 
-    def capture(self) -> Image.Image:
-        """Return the current canvas as a Pillow RGBA image, Lanczos-downscaled."""
+    def capture(self, size: tuple[int, int] | None = None) -> Image.Image:
+        """Return the current canvas as a Pillow RGBA image, Lanczos-downscaled.
+
+        ``size`` (width, height) overrides the default ``scene.size`` target — video
+        rendering passes ``geo.video_dimensions`` so the clip honours ``scene.video``
+        (issue 335 §3); stills keep the scene size.
+        """
         data_url = self._page.evaluate("() => window.__canvasDataUrl()")
         raw = base64.b64decode(data_url.split(",", 1)[1])
         im = Image.open(BytesIO(raw)).convert("RGBA")
-        target = (self._scene.size.width, self._scene.size.height)
+        target = size if size is not None else (self._scene.size.width, self._scene.size.height)
         if im.size != target:
             im = im.resize(target, Image.LANCZOS)
         return im
@@ -348,7 +359,13 @@ class PlaywrightEngine:
         im.save(out, "PNG")
 
     def render_video(self, scene: Scene, out: Path) -> None:
-        """Render SCENE's transition to an mp4 (requires ``scene.transition``)."""
+        """Render SCENE's transition to an mp4 (requires ``scene.transition``).
+
+        Video params come from ``scene.video`` (issue 335 §3): the encode fps is
+        ``geo.video_fps``, captured frames are Lanczos-downscaled to ``geo.video_dimensions``
+        (defaults to ``scene.size``), and the frame plan is bookended by held first/last
+        stills (``geo.frame_plan`` honours ``scene.video.first_hold``/``last_hold``).
+        """
         if scene.transition is None:
             raise ValueError("scene has no transition; nothing to animate (use render_image)")
         _require_ffmpeg()
@@ -356,6 +373,8 @@ class PlaywrightEngine:
         if not plan:
             raise ValueError("transition produced no frames")
 
+        size = geo.video_dimensions(scene)
+        fps = geo.video_fps(scene)
         # Mount once; the deck's initial view is irrelevant since every frame is
         # driven explicitly via applyFrameState. Caption opacity travels in each
         # FrameState (caption_opacities -> captionOpacities, see _frame_state_dict),
@@ -369,9 +388,9 @@ class PlaywrightEngine:
                 tmp_dir = Path(tmp)
                 for i, state in enumerate(plan):
                     browser.apply_frame(state, 0.0)
-                    im = browser.capture()
+                    im = browser.capture(size)
                     im.convert("RGB").save(tmp_dir / f"frame_{i:05d}.png", "PNG")
-                _encode_video(tmp_dir, scene.transition.fps, out)
+                _encode_video(tmp_dir, fps, out)
         finally:
             browser.close()
         if not out.exists() or out.stat().st_size == 0:
@@ -379,7 +398,13 @@ class PlaywrightEngine:
 
 
 def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
-    """Assemble a PNG sequence into an H.264 mp4 with ffmpeg."""
+    """Assemble a PNG sequence into an H.264 mp4 with ffmpeg.
+
+    Hardware-decoder-safe encode (issue 334): ``-bf 0`` (no B-frames) + a keyframe every
+    ``fps`` frames + explicit bt709 / limited-range color tags, so macOS VideoToolbox
+    (QuickTime / QuickLook) decodes the whole clip cleanly instead of corrupting partway
+    through. (Shared with the pygfx engine — see its note for the full rationale.)
+    """
     ffmpeg = _require_ffmpeg()
     cmd = [
         ffmpeg,
@@ -390,12 +415,28 @@ def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
         str(frame_dir / "frame_%05d.png"),
         "-c:v",
         "libx264",
+        "-profile:v",
+        "high",
         "-crf",
         "18",
         "-pix_fmt",
         "yuv420p",
         "-vf",
         "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        "-bf",
+        "0",
+        "-g",
+        str(max(1, fps)),
+        "-keyint_min",
+        str(max(1, fps)),
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv",
         "-movflags",
         "+faststart",
         str(out),

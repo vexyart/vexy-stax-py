@@ -49,6 +49,19 @@
         "easing": { "enum": ["linear", "easeInOutCubic", "easeOutCubic", "easeInCubic"], "default": "easeInOutCubic" }
       }
     },
+    "video": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Video render params (issue 335 §3): dimensions/fps/frame counts/held stills. transition still owns the animation (kind/easing/wait/duration); video owns the output framing. Defaults preserve prior behavior.",
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "description": "Video width; omitted ⇒ size.width." },
+        "height": { "type": "integer", "minimum": 1, "description": "Video height; omitted ⇒ size.height." },
+        "fps": { "type": "integer", "minimum": 1, "description": "Video frames per second; omitted ⇒ transition.fps (else 30). Overrides transition.fps when set." },
+        "frames": { "type": "integer", "minimum": 1, "description": "Transition frames PER LEG; omitted ⇒ round(transition.duration × fps)." },
+        "first_hold": { "type": "integer", "minimum": 0, "default": 10, "description": "Held copies of the FIRST frame (still intro)." },
+        "last_hold": { "type": "integer", "minimum": 0, "default": 10, "description": "Held copies of the LAST frame (still outro)." }
+      }
+    },
     "floor": {
       "type": "object",
       "additionalProperties": false,
@@ -69,6 +82,7 @@
     },
     "background": { "type": "string", "default": "#ffffff" },
     "juicy": { "type": "boolean", "default": false, "description": "Python-only per-channel color match." },
+    "captions": { "type": "boolean", "default": true, "description": "Global captions toggle (issue 332). ON: each slide plate sits on top of its on-floor caption plate (stacked layout). OFF: no caption plates; slide plates sit directly on the floor." },
     "caption_defaults": { "$ref": "#/$defs/captionStyle" },
     "caption_fade": {
       "type": "object",

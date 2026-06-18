@@ -362,7 +362,8 @@ class _Deck:
         text width + ``2 × CAPTION_PLATE_PAD_EM × caption_size`` (1.5em pad each side), all ×
         ``self._scale`` so the plate matches the deck scale.
         """
-        if slide.caption is None:
+        # Issue 332: a global captions=false toggle skips ALL caption plates.
+        if not scene.captions or slide.caption is None:
             return None
         style = _caption_style(scene, slide)
         # Scene-point units already ARE world units (the deck is scaled so scene.size maps to
@@ -391,9 +392,10 @@ class _Deck:
         text_w = float(bb[1][0] - bb[0][0]) if bb is not None else 0.0
 
         plate_w = text_w + 2.0 * pad
-        # Local frame: origin at the plate's RIGHT edge & vertical center, so the plate spans
-        # X in [-plate_w, 0] and Y in [-plate_h/2, +plate_h/2]. center is at (-plate_w/2, 0).
-        cx = -plate_w / 2.0
+        # Local frame: origin at the plate's LEFT edge & vertical center (issue 332 relayout —
+        # captions are now LEFT-aligned with their slide), so the plate spans X in [0, plate_w]
+        # and Y in [-plate_h/2, +plate_h/2]. center is at (+plate_w/2, 0).
+        cx = plate_w / 2.0
 
         pieces: list[gfx.WorldObject] = []
 
@@ -457,10 +459,10 @@ class _Deck:
 
         Caption opacity comes exclusively from ``state.caption_opacities`` (populated
         by ``geometry.frame_plan`` for video and by ``geo.caption_opacities`` for stills
-        via ``_still_state``). Each caption plate's RIGHT edge anchors at
-        ``caption_anchor_x × scale`` and its vertical center at ``caption_plate_center_y ×
-        scale``; its Z tracks the plate's scaled Z so the caption recedes with its plate
-        in expanded view (issue 311). Plates cast no floor shadow (issue 312).
+        via ``_still_state``). Each caption plate's LEFT edge anchors at
+        ``caption_anchor_x`` (the slide left edge, issue 332) and its vertical center at
+        ``caption_plate_center_y`` (on the floor); its Z tracks the plate's Z so the caption
+        recedes with its plate in expanded view (issue 311). Plates cast no floor shadow (312).
         """
         z_positions = geo._stack_positions(state.gaps)
         reflectivity = self.scene.floor.reflectivity
@@ -470,22 +472,27 @@ class _Deck:
         # and vertical center Y. Used directly (no × self._scale — see _make_caption).
         cap_anchor_x = geo.caption_anchor_x(self.scene)
         cap_center_y = geo.caption_plate_center_y(self.scene)
+        # Issue 332: lift every slide plate (+ its border/reflection) by one caption-plate
+        # height so it sits ON TOP of its on-floor caption plate (0 when captions are off).
+        lift = geo.slide_lift(self.scene)
         for i in range(len(self.scene.slides)):
             z = z_positions[i]
             alpha = state.opacities[i]
             plate = self._plates[i]
-            plate.local.position = (0.0, 0.0, z)
+            plate.local.position = (0.0, lift, z)
             plate.material.opacity = alpha
 
             refl = self._reflections[i]
             if refl is not None:
-                refl.local.position = (0.0, 2.0 * self._floor_y, z)
+                # Mirror the lifted plate center across the floor line (Y = floor_y): a point
+                # at Y = lift maps to 2*floor_y - lift.
+                refl.local.position = (0.0, 2.0 * self._floor_y - lift, z)
                 refl.material.opacity = alpha * reflectivity
 
-            # Plate border: track this plate's Z every frame; fade with the plate (issue 305).
+            # Plate border: track this plate's lifted center every frame; fade with it (305).
             for bar in self._borders[i]:
                 cx, cy = bar._vexy_offset  # type: ignore[attr-defined]
-                bar.local.position = (cx, cy, z + border_dz)
+                bar.local.position = (cx, cy + lift, z + border_dz)
                 bar.material.opacity = alpha
 
             # Caption plate (issue 311): anchor the group at the right-edge/center anchor at
@@ -549,7 +556,13 @@ class PygfxEngine:
         im.save(out, "PNG")
 
     def render_video(self, scene: Scene, out: Path) -> None:
-        """Render SCENE's transition to an mp4 (requires ``scene.transition``)."""
+        """Render SCENE's transition to an mp4 (requires ``scene.transition``).
+
+        Video params come from ``scene.video`` (issue 335 §3): the encode fps is
+        ``geo.video_fps``, the render size is ``geo.video_dimensions`` (defaults to
+        ``scene.size``), and the frame plan is bookended by held first/last stills
+        (``geo.frame_plan`` honours ``scene.video.first_hold``/``last_hold``).
+        """
         if scene.transition is None:
             raise ValueError("scene has no transition; nothing to animate (use render_image)")
         _require_ffmpeg()
@@ -557,6 +570,8 @@ class PygfxEngine:
         if not plan:
             raise ValueError("transition produced no frames")
 
+        width, height = geo.video_dimensions(scene)
+        fps = geo.video_fps(scene)
         deck = _Deck(scene)
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -565,9 +580,9 @@ class PygfxEngine:
             for i, state in enumerate(plan):
                 deck.set_frame(state)
                 # No supersample for video frames: many frames, speed matters.
-                im = _render_frame(deck, scene.size.width, scene.size.height, 1)
+                im = _render_frame(deck, width, height, 1)
                 im.convert("RGB").save(tmp_dir / f"frame_{i:05d}.png", "PNG")
-            _encode_video(tmp_dir, scene.transition.fps, out)
+            _encode_video(tmp_dir, fps, out)
         if not out.exists() or out.stat().st_size == 0:
             raise RuntimeError(f"ffmpeg finished but {out} is missing/empty")
 
@@ -581,7 +596,16 @@ def _require_ffmpeg() -> str:
 
 
 def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
-    """Assemble a PNG sequence into an H.264 mp4 with ffmpeg."""
+    """Assemble a PNG sequence into an H.264 mp4 with ffmpeg.
+
+    Hardware-decoder-safe encode (issue 334): the pygfx frames have hard aliased edges
+    that, with B-frames + a single IDR keyframe, made macOS VideoToolbox (QuickTime /
+    QuickLook) desync ~40 % in and stay corrupted for the rest of the clip (ffmpeg's
+    software decoder tolerated it; playwright/blender's smoother frames did not trip it).
+    So: ``-bf 0`` (no B-frames), a keyframe every ``fps`` frames (``-g``/``-keyint_min``)
+    so any desync self-heals within a second, and explicit bt709 / limited-range color
+    tags so VideoToolbox interprets the stream correctly.
+    """
     ffmpeg = _require_ffmpeg()
     cmd = [
         ffmpeg,
@@ -592,12 +616,28 @@ def _encode_video(frame_dir: Path, fps: int, out: Path) -> None:
         str(frame_dir / "frame_%05d.png"),
         "-c:v",
         "libx264",
+        "-profile:v",
+        "high",
         "-crf",
         "18",
         "-pix_fmt",
         "yuv420p",
         "-vf",
         "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        "-bf",
+        "0",
+        "-g",
+        str(max(1, fps)),
+        "-keyint_min",
+        str(max(1, fps)),
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv",
         "-movflags",
         "+faststart",
         str(out),

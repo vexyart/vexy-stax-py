@@ -48,6 +48,13 @@ optional `wait` hold at the far end:
 During any transition, per-slide **opacity** is interpolated alongside camera
 and spacing (the one addition issue 301 §3 mandates over the legacy format).
 
+A rendered transition **video** (issue 335 §2) holds a still on its FIRST frame for
+`video.first_hold` frames and on its LAST frame for `video.last_hold` frames (default 10
+each, default-on): `still(N) → transition → still(N)`. The held frames are exact copies of
+the boundary frame states, so the clip opens and closes on a steady image. The video output
+params (dimensions, fps, transition frame count, hold counts) live in the `video` scene
+section (§2.4) — see precedence there.
+
 ---
 
 ## 2. Shared scene format v1
@@ -74,6 +81,14 @@ published as `schema/vexy-stax-scene.schema.json` and referenced by `$schema`.
     "wait": 1.0,                        // hold seconds at the far end
     "fps": 30,
     "easing": "easeInOutCubic"          // shared easing name (see §2.3)
+  },
+  "video": {                            // video render params (issue 335 §3; see §2.4)
+    "width": null,                      // null ⇒ size.width
+    "height": null,                     // null ⇒ size.height
+    "fps": null,                        // null ⇒ transition.fps (else 30)
+    "frames": null,                     // transition frames PER LEG; null ⇒ round(duration·fps)
+    "first_hold": 10,                   // held copies of the FIRST frame (still intro)
+    "last_hold": 10                     // held copies of the LAST frame (still outro)
   },
   "floor": {                            // smoked glass, blurry reflections (issue 303 §1)
     "color": "#1a1a1a",                 // smoked tint (dark; barely visible on light bg)
@@ -167,6 +182,32 @@ set: `linear`, `easeInOutCubic` (default), `easeOutCubic`, `easeInCubic`. The
 Blender engine maps these to Bezier handles; pygfx/JS evaluate the cubic
 directly. Unknown fields are rejected by the parser (fail-loud at the boundary —
 "parse, don't validate").
+
+### 2.4 Video render params (issue 335 §3)
+
+The optional `video` section centralizes the parameters used when an engine renders a
+transition **video**, separating them from the `transition` (which still owns the
+*animation* — `kind`/`easing`/`wait`/`duration`):
+
+| Field        | Type        | Default                         | Meaning |
+|--------------|-------------|---------------------------------|---------|
+| `width`      | int / null  | `size.width`                    | Video pixel width. |
+| `height`     | int / null  | `size.height`                   | Video pixel height. |
+| `fps`        | int / null  | `transition.fps` (else `30`)    | Encoded frame rate; **overrides** `transition.fps` for video when set. |
+| `frames`     | int / null  | `round(duration·fps)`           | Number of TRANSITION frames **per leg**. |
+| `first_hold` | int (≥0)    | `10`                            | Held copies of the FIRST frame (still intro). |
+| `last_hold`  | int (≥0)    | `10`                            | Held copies of the LAST frame (still outro). |
+
+**Precedence.** `video.fps`/`video.frames`/`video.width`/`video.height` win when set;
+otherwise each falls back to the legacy `transition`/`size`-derived value, so an unmodified
+scene renders exactly as before. The held first/last stills (`first_hold`/`last_hold`) are
+prepended/appended by `geometry.frame_plan` — set either to `0` to disable that hold. Total
+rendered length is `first_hold + legs·(frames + round(wait·fps)) + last_hold`.
+
+**Overrides.** Callers may override any field without editing the scene: the Python API
+(`Engine.render_video` reads `scene.video`; `geometry.frame_plan(scene, first_hold, last_hold)`
+takes explicit holds) and the CLI (`stax video --width --height --fps --frames --first_hold
+--last_hold`).
 
 ---
 

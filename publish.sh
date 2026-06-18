@@ -90,6 +90,8 @@ publish_to_pypi() {
 
 echo -e "${BLUE}Publishing vexy-stax...${NC}"
 
+uvx gitnextver
+
 # Step 1: clean build (lint + test + wheel/sdist). build.sh wipes dist/ first.
 echo -e "${YELLOW}→ Building...${NC}"
 ./build.sh

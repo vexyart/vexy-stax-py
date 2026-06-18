@@ -48,7 +48,7 @@ def test_ease_unknown_raises() -> None:
 
 
 def test_interpolate_opacity_lerps(scene: Scene) -> None:
-    halftone = scene.slides[7]  # expanded=1.0, compact=0.4
+    halftone = scene.slides[6]  # airbl-080-halftone: expanded=1.0, compact=0.4
     assert g.interpolate_opacity(halftone, 0.0) == pytest.approx(0.4)
     assert g.interpolate_opacity(halftone, 1.0) == pytest.approx(1.0)
     assert g.interpolate_opacity(halftone, 0.5) == pytest.approx(0.7)
@@ -83,7 +83,12 @@ def test_compact_camera_head_on_plus_z(scene: Scene) -> None:
     assert cam.position[2] > cam.target[2]
     assert cam.position[0] == pytest.approx(cam.target[0])
     assert cam.position[1] == pytest.approx(cam.target[1])
-    # Dual-axis crop-free fit (issue 302 §1, 303 §2): distance = max(d_w, d_h) + depth/2.
+    # Issue 332: the head-on target is the COMPOSITE (slide + on-floor caption) center, lifted
+    # to Y = lift/2; X stays centered at 0.
+    lift = g.slide_lift(scene)
+    assert cam.target[1] == pytest.approx(lift / 2.0)
+    # Dual-axis crop-free fit (issue 302 §1, 303 §2, 332): distance = max(d_w, d_h) + depth/2,
+    # where d_h fits the FULL composite height (H + lift), not just the slide.
     import math
 
     frac = float(str(scene.camera.distance).rstrip("%")) / 100.0  # "100%" -> 1.0 (fit tight)
@@ -91,23 +96,25 @@ def test_compact_camera_head_on_plus_z(scene: Scene) -> None:
     aspect = scene.size.width / scene.size.height
     vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
     d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
-    d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)
+    d_h = (scene.size.height + lift) / (2.0 * math.tan(vfov / 2.0) * frac)
     expected_distance = max(d_w, d_h) + g.stack_depth(scene, "compact") / 2.0
     assert cam.position[2] - cam.target[2] == pytest.approx(expected_distance)
 
 
 def test_compact_camera_no_crop_limiting_axis_at_pct(scene: Scene) -> None:
-    """Front plate fits with no crop; the limiting axis touches exactly P% (303: P=100, fit tight)."""
+    """Composite (slide + caption row) fits with no crop; limiting axis touches P% (332)."""
     import math
 
     frac = float(str(scene.camera.distance).rstrip("%")) / 100.0
     cam = g.compact_camera(scene)
+    lift = g.slide_lift(scene)
+    composite_h = scene.size.height + lift
     d = cam.position[2] - 0.0  # camera->front plate (Z=0) along view axis
     hfov = math.radians(scene.camera.fov)
     aspect = scene.size.width / scene.size.height
     vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
     fill_w = (scene.size.width / 2.0) / (d * math.tan(hfov / 2.0))
-    fill_h = (scene.size.height / 2.0) / (d * math.tan(vfov / 2.0))
+    fill_h = (composite_h / 2.0) / (d * math.tan(vfov / 2.0))
     assert fill_w <= 1.0 + 1e-9 and fill_h <= 1.0 + 1e-9  # no crop on either axis
     assert max(fill_w, fill_h) == pytest.approx(frac)  # limiting axis touches exactly P%
 
@@ -144,7 +151,7 @@ def _project_expanded_ndc(scene: Scene, cam: g.CameraPose):
 def test_expanded_camera_margins_match_gap(scene: Scene) -> None:
     """Issue 302 §2: left margin == right margin == projected inter-plate gap, no crop."""
     cam = g.expanded_camera(scene)
-    assert cam.position[1] == pytest.approx(0.0)  # elevation 0 keeps camera at deck height
+    assert cam.position[1] > 0.0  # testdata elevation 30 lifts the camera above deck height
     assert cam.position[2] > cam.target[2]  # toward the viewer (+Z)
     margin_l, margin_r, gap, ymax = _project_expanded_ndc(scene, cam)
     assert margin_l == pytest.approx(margin_r, abs=1e-3)  # equal L/R margins
@@ -159,10 +166,68 @@ def test_plate_gaps_fallback(scene: Scene) -> None:
 
 
 def test_frame_plan_length(scene: Scene) -> None:
-    # expand_collapse: 2 legs; duration 4.0 * 20 = 80 frames/leg; wait 1.0 * 20 = 20
+    # Issue 335 §2: default held first/last stills (10 each) bookend the clip.
+    # expand_collapse: 2 legs; duration 4.0 * 20 = 80 frames/leg; wait 1.0 * 20 = 20.
     plan = g.frame_plan(scene)
-    expected = 2 * (round(4.0 * 20) + round(1.0 * 20))  # 2 * (80 + 20) = 200
-    assert len(plan) == expected == 200
+    transition = 2 * (round(4.0 * 20) + round(1.0 * 20))  # 2 * (80 + 20) = 200
+    expected = 10 + transition + 10  # default first_hold/last_hold = 10 each
+    assert len(plan) == expected == 220
+
+
+def test_frame_plan_held_first_last_frames(scene: Scene) -> None:
+    """Issue 335 §2: the first N and last N frames are exact copies of the boundary states."""
+    fh, lh = scene.video.first_hold, scene.video.last_hold
+    assert (fh, lh) == (10, 10)  # defaults
+    plan = g.frame_plan(scene)
+    # The first fh frames are all identical to the first transition frame; the last lh to the last.
+    first = plan[0]
+    for f in plan[: fh + 1]:  # the held intro + the first real transition frame are the same state
+        assert f.camera == first.camera
+        assert f.opacities == pytest.approx(first.opacities)
+    last = plan[-1]
+    for f in plan[-(lh + 1) :]:
+        assert f.camera == last.camera
+        assert f.opacities == pytest.approx(last.opacities)
+    # Identity, not just equality: the holds reuse the boundary FrameState object.
+    assert all(f is plan[fh] for f in plan[:fh])
+    assert all(f is plan[-(lh + 1)] for f in plan[-lh:])
+
+
+def test_frame_plan_hold_overrides(scene: Scene) -> None:
+    """Issue 335 §2/§3: per-call first_hold/last_hold override the scene defaults."""
+    transition = 2 * (round(4.0 * 20) + round(1.0 * 20))  # 200
+    plan = g.frame_plan(scene, first_hold=0, last_hold=0)
+    assert len(plan) == transition  # no holds
+    plan2 = g.frame_plan(scene, first_hold=5, last_hold=3)
+    assert len(plan2) == 5 + transition + 3
+
+
+def test_video_param_resolvers(scene: Scene) -> None:
+    """Issue 335 §3: video dimensions/fps/frames resolve from scene.video with fallbacks."""
+    # Defaults: dimensions fall back to scene.size; fps falls back to transition.fps (20 in the
+    # testdata); frames derive from duration × that fps.
+    assert g.video_dimensions(scene) == (scene.size.width, scene.size.height)
+    assert g.video_fps(scene) == scene.transition.fps == 20
+    assert g.transition_frames(scene) == round(scene.transition.duration * 20)
+    # Explicit video overrides win.
+    scene.video.width = 800
+    scene.video.height = 600
+    scene.video.fps = 24
+    scene.video.frames = 42
+    assert g.video_dimensions(scene) == (800, 600)
+    assert g.video_fps(scene) == 24
+    assert g.transition_frames(scene) == 42
+
+
+def test_video_frames_override_changes_plan_length(scene: Scene) -> None:
+    """Issue 335 §3: scene.video.frames overrides the duration-derived per-leg frame count."""
+    scene.video.frames = 12  # 12 transition frames per leg
+    scene.video.first_hold = 0
+    scene.video.last_hold = 0
+    plan = g.frame_plan(scene)
+    legs = 2  # expand_collapse
+    wait_frames = round(scene.transition.wait * g.video_fps(scene))
+    assert len(plan) == legs * (12 + wait_frames)
 
 
 def test_frame_plan_empty_without_transition(scene: Scene) -> None:
@@ -172,11 +237,12 @@ def test_frame_plan_empty_without_transition(scene: Scene) -> None:
 
 def test_frame_plan_endpoints_opacity(scene: Scene) -> None:
     plan = g.frame_plan(scene)
-    halftone_idx = 7
-    # expand_collapse starts compact (t=0): halftone opacity 0.4
+    halftone_idx = 6  # airbl-080-halftone (8-slide deck)
+    fh = scene.video.first_hold  # issue 335 §2: 10 held intro frames shift the indices
+    # expand_collapse starts compact (t=0): halftone opacity 0.4 (held intro is the compact start)
     assert plan[0].opacities[halftone_idx] == pytest.approx(0.4)
-    # at the end of leg 1 (frame 80 = first hold frame), fully expanded: 1.0
-    assert plan[80].opacities[halftone_idx] == pytest.approx(1.0)
+    # at the end of leg 1 (the first wait-hold frame, after the held intro), fully expanded: 1.0
+    assert plan[fh + 80].opacities[halftone_idx] == pytest.approx(1.0)
 
 
 def test_caption_opacities_invisible_in_compact(scene: Scene) -> None:
@@ -217,8 +283,9 @@ def test_caption_opacities_window_and_show_in() -> None:
 
 def test_frame_state_carries_caption_opacities(scene: Scene) -> None:
     plan = g.frame_plan(scene)
+    fh = scene.video.first_hold  # issue 335 §2: held intro shifts the expanded-hold index by fh
     assert plan[0].caption_opacities == pytest.approx([0.0] * len(scene.slides))  # compact start
-    assert plan[80].caption_opacities == pytest.approx([1.0] * len(scene.slides))  # expanded hold
+    assert plan[fh + 80].caption_opacities == pytest.approx([1.0] * len(scene.slides))  # expanded hold
 
 
 def test_caption_layout_em_based(scene: Scene) -> None:
@@ -318,6 +385,76 @@ def test_reflection_constant_and_caption_plate(scene: Scene) -> None:
     assert g.caption_plate_center_y(scene) == pytest.approx(
         -(scene.size.height / 2.0) + g.caption_plate_height(scene) / 2.0
     )
+
+
+def test_slide_lift_on_and_off(scene: Scene) -> None:
+    """Issue 332: captions ON lifts slides by one caption-plate height; OFF → no lift."""
+    # Default (captions on): each slide is lifted by exactly one caption-plate height so it
+    # sits on top of its on-floor caption plate.
+    assert scene.captions is True
+    assert g.slide_lift(scene) == pytest.approx(g.caption_plate_height(scene))
+    assert g.slide_lift(scene) > 0.0
+    # Caption plate still sits ON the floor (bottom edge on the floor line, center half a
+    # plate-height above it) regardless of the lift.
+    assert g.caption_plate_center_y(scene) == pytest.approx(
+        -(scene.size.height / 2.0) + g.caption_plate_height(scene) / 2.0
+    )
+    # Captions off: no lift (slides drop directly onto the floor).
+    scene.captions = False
+    assert g.slide_lift(scene) == pytest.approx(0.0)
+
+
+def test_captions_off_suppresses_caption_opacities(scene: Scene) -> None:
+    """Issue 332: a global captions=false zeroes every caption opacity (no caption layout)."""
+    scene.captions = False
+    assert g.caption_opacities(scene, 0.0) == pytest.approx([0.0] * len(scene.slides))
+    assert g.caption_opacities(scene, 1.0) == pytest.approx([0.0] * len(scene.slides))
+
+
+def test_captions_off_compact_camera_drops_to_floor(scene: Scene) -> None:
+    """Issue 332: captions off → compact target back at Y=0 and fits only the slide height."""
+    import math
+
+    scene.captions = False
+    cam = g.compact_camera(scene)
+    assert cam.target[1] == pytest.approx(0.0)  # no lift → composite center back at Y=0
+    frac = float(str(scene.camera.distance).rstrip("%")) / 100.0
+    hfov = math.radians(scene.camera.fov)
+    aspect = scene.size.width / scene.size.height
+    vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
+    d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
+    d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)  # composite_h == H (lift 0)
+    expected = max(d_w, d_h) + g.stack_depth(scene, "compact") / 2.0
+    assert cam.position[2] - cam.target[2] == pytest.approx(expected)
+
+
+def test_expanded_camera_no_crop_with_caption_stack(scene: Scene) -> None:
+    """Issue 332: the expanded fit frames the full caption+slide stack with no vertical crop.
+
+    Project both the lifted slide corners AND the on-floor caption-plate bottom (Y=-H/2);
+    every projected |ndc_y| must stay within V_FILL (no crop of the caption row or slides).
+    """
+    import math
+
+    cam = g.expanded_camera(scene)
+    lift = g.slide_lift(scene)
+    hfov = math.radians(scene.camera.fov)
+    aspect = scene.size.width / scene.size.height
+    th = math.tan(hfov / 2.0)
+    tv = math.tan(2.0 * math.atan(th / aspect) / 2.0)
+    look = g._normalize(g._sub(cam.target, cam.position))
+    right = g._normalize(g._cross(look, (0.0, 1.0, 0.0)))
+    up = g._normalize(g._cross(right, look))
+    hw, hh = scene.size.width / 2.0, scene.size.height / 2.0
+    ymax = 0.0
+    ys = [lift - hh, lift + hh, -hh]  # slide bottom (lifted), slide top, caption-plate bottom
+    for z in g._stack_positions(g.plate_gaps(scene)):
+        for sx in (-hw, hw):
+            for sy in ys:
+                rel = g._sub((sx, sy, z), cam.position)
+                zv = g._dot(rel, look)
+                ymax = max(ymax, abs(g._dot(rel, up) / (zv * tv)))
+    assert ymax <= g.V_FILL + 1e-6
 
 
 def test_caption_opacities_stagger_frames() -> None:

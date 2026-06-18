@@ -37,7 +37,7 @@ version-file = "src/vexy_stax/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vexy_stax"]
-artifacts = ["src/vexy_stax/fonts/*"]
+artifacts = ["src/vexy_stax/fonts/*.ttf", "src/vexy_stax/fonts/*.txt"]
 
 [tool.hatch.envs.default]
 dependencies = [

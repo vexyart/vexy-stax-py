@@ -56,7 +56,10 @@ def small_scene():
 # A blank/near-blank render (the old false-pass) has tiny variance and a handful
 # of unique colors; a real render of the textured deck has high variance and
 # thousands of distinct colors. These thresholds catch the "blank white" failure.
-MIN_STD = 28.0
+# Issue 332: the stacked caption+slide layout is taller, so the crop-free camera pulls back
+# and the deck occupies a smaller fraction of the frame (more uniform background) → the std
+# drops a few points while staying far from blank. Threshold lowered 28→22 to match.
+MIN_STD = 22.0
 MIN_UNIQUE_COLORS = 500
 
 

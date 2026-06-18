@@ -4,6 +4,121 @@
 
 All notable changes to this project are documented here.
 
+## [3.0.11] — issue 335
+
+### Added
+
+- **`video` scene section** centralizing the video render params (`vexy_stax.scene.Video`,
+  schema `#/properties/video`): `width`/`height` (default to `scene.size`), `fps` (default
+  ⇒ `transition.fps`, else 30), `frames` (transition frames per leg; default
+  ⇒ `round(duration × fps)`), and `first_hold`/`last_hold` (held still-frame counts, default
+  10 each). The `transition` block still owns the animation (`kind`/`easing`/`wait`/`duration`);
+  `video` owns the output framing. All engines read these for video via the new
+  `geometry.video_fps` / `geometry.video_dimensions` / `geometry.transition_frames` helpers.
+- **Held first/last still frames in transition videos (default-on).** `geometry.frame_plan`
+  now prepends `first_hold` copies of the first frame and appends `last_hold` copies of the
+  last (`still(N) → transition → still(N)`), so every clip opens and closes on a steady image.
+  Override per call: `frame_plan(scene, first_hold=…, last_hold=…)` or
+  `stax video --first_hold … --last_hold …`.
+- **`vexy_stax.showcase` module** holding the showcase/benchmark logic (per-engine render loop,
+  std>20 near-blank gate, linear-easing showcase transition, benchmark file, JS-demo rebuild)
+  behind a clean `run_showcase(...)` API. `example.py` is now a thin wrapper.
+- **CLI overrides** on `stax video`: `--width --height --fps --frames --first_hold --last_hold`.
+
+### Changed
+
+- `example.py` reduced to a thin wrapper around `vexy_stax.showcase.run_showcase` (behavior
+  unchanged: same outputs, same std gate, same linear showcase transition, same JS-demo rebuild).
+- The playwright engine strips the `video` section from the config handed to vexy-stax-js
+  (consumed Python-side; the JS parser rejects unknown keys until JS mirrors the field).
+
+## [3.0.10] — issue 334
+
+### Fixed
+
+- **pygfx `transition.mp4` corrupted ~40 % in after playback in QuickTime/QuickLook** (334): the
+  pygfx and playwright mp4s share the exact same ffmpeg encode, yet only pygfx's corrupted in macOS
+  VideoToolbox (ffmpeg's software decoder, and playwright/blender's smoother frames, were unaffected).
+  Root cause: B-frames + a single IDR keyframe — VideoToolbox desynced on pygfx's hard aliased edges
+  and, with no later keyframe, never recovered. The shared `_encode_video` (pygfx + playwright) now
+  encodes `-bf 0` (no B-frames), a keyframe every `fps` frames (`-g`/`-keyint_min`, so any desync
+  self-heals within ~1 s), `-profile:v high`, and explicit bt709 / limited-range color tags so
+  VideoToolbox interprets the stream correctly. Verified: `has_b_frames=0`, periodic keyframes,
+  `color_range=tv`, and a clean macOS QuickLook (VideoToolbox) decode of the regenerated 4K clip.
+
+## [3.0.9] — issue 332
+
+### Added
+
+- **Global `captions` on/off toggle** (332): a new top-level boolean scene field (default `true`,
+  preserving prior behavior) parsed + validated in `scene.py` and `schema/vexy-stax-scene.schema.json`.
+  When `false`, no caption plates are drawn (every engine + the geometry's `caption_opacities` skip
+  them) and the slide plates drop directly onto the floor.
+
+### Changed
+
+- **New stacked caption layout** (332): when captions are ON, each caption plate sits RIGHT ON the
+  floor (bottom edge on the floor line) and its slide plate sits directly ON TOP of it (slide bottom
+  edge == caption top edge), LEFT-aligned with the slide (caption left edge == slide left edge at
+  `X = -width/2`). This replaces the previous "caption to the LEFT of the plate" layout.
+  - `geometry.py`: added `slide_lift(scene)` (one caption-plate height when captions on, else 0);
+    every slide plate is lifted by it. `caption_anchor_x` now means the caption plate's LEFT edge
+    (numerically unchanged since `CAPTION_GAP_EM == 0`). `caption_opacities` returns all-zero when
+    `captions` is off.
+  - **Crop-free camera framing for the full composite**: `compact_camera` now fits the frontmost
+    COMPOSITE (width `W`, height `H + lift`) and aims at its center (`Y = lift/2`); `expanded_camera`
+    includes the lifted slide corners AND the on-floor caption-plate bottom row in its bounding fit,
+    so the caption+slide stack is framed with no crop in either view.
+  - Engines (`engines/pygfx.py`, `engines/_blender_render.py` + `engines/blender.py`) honor the
+    toggle, lift slides/borders/reflections, and anchor caption plates by their LEFT edge on the
+    floor. The `playwright` engine inherits the layout from the shared JS geometry/stage.
+
+## [3.0.8] — issues 325, 328, 329, 330
+
+### Fixed
+
+- **Transition video "froze" after ~1 s** (329): the showcase clip used `easeInOutCubic`, which
+  — combined with the expanded camera receding very far — placed only ~2 % of the camera motion in
+  the final 0.33 s, so the deck appeared to stop moving half-way through. `example.py` now renders
+  the showcase transition with `linear` easing (~17 % of the motion in every 0.33 s bucket), so the
+  clip animates continuously to the end. Verified: 0 near-static tail frames (was the whole last
+  third).
+- **pygfx / playwright `transition.mp4` encoding hardened** (329): both `_encode_video` helpers now
+  pass `-crf 18` and `-movflags +faststart`, matching the Blender reference encoder (was libx264 /
+  yuv420p with default CRF and no faststart). The output stays valid H.264 / yuv420p with even
+  dimensions.
+- **`expanded.png` flagged as a false failure** (329): the showcase gate required `std > 28`, but the
+  expanded view is an intentionally sparse layer-explosion whose legitimate 4K std is ~23–24 across
+  all three engines (a blank/broken render is < 10). The gate is now `std > 20`, a near-blank guard
+  that no longer fails the correct sparse framing. (Per design decision: keep the spread look; the
+  `camera.gap` is honored — `test_expanded_camera_margins_match_gap` confirms margin == projected
+  gap.)
+- **Bundled-font glob leaked workspace cruft** (328): `tool.hatch.build.targets.wheel.artifacts`
+  was `fonts/*`, which swept a stray `.omc/` session file into the wheel. Narrowed to
+  `fonts/*.ttf` + `fonts/*.txt`; the `vexy-stax.ttf` face (+ `OFL.txt`) still ships, the cruft no
+  longer does.
+- **Stale unit tests after the deck shrank to 8 slides** (325): `test_scene`/`test_geometry` still
+  assumed the old 9-slide deck (the dropped `010-back` layer) and camera elevation 0, so 6 tests
+  failed independently of any render. Updated the slide count (9→8), back-most slide
+  (`010-back`→`020-source`), halftone index (7→6) and the expanded-camera elevation expectation to
+  match the authored testdata. Suite is green.
+
+### Verified (no code change needed)
+
+- **Blender compact-view black middle + transition translucency** (325): confirmed already fixed by
+  the 3.0.7 `transparent_max_bounces` work — the committed `outputs/blender/*` were simply stale.
+  Fresh full-res renders show compact std ≈ 99.7 (pink backdrop visible through the transparent
+  lettering layers) and clean, non-translucent mid-transition plates.
+- **Blender render speed** (325): the 3.0.7 speedups hold — a full-res (3840×2482) compact still now
+  renders in ~43 s (was ~400 s+).
+
+### Changed
+
+- **`example.py` rebuilds the sibling JS demos** (330): after the Python renders it best-effort runs
+  `vexy-stax-js/example.sh`, regenerating `vexy-stax-js/outputs/{scrollable,playable}.html` (and
+  cleaning stale `outputs/` via that script's `rm -rf`). Skipped — never fatal — when bash/node or
+  the JS package is unavailable.
+
 ## [3.0.7] — issues 325, 328
 
 ### Changed

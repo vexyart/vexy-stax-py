@@ -483,10 +483,12 @@ def create_caption(plate_job: dict, job: dict, index: int) -> tuple[object, list
     """Build a caption as a white opaque bordered PLATE with centered text (issue 311).
 
     Returns ``(group_obj, [materials])`` or ``None`` when the slide has no caption. The
-    group's LOCAL origin is the caption plate's RIGHT edge at its vertical center; the plate
-    spans local X in ``[-width, 0]`` and Y in ``[-h/2, +h/2]``. ``place_plates`` sets the
-    group to ``(caption_anchor_x, caption_plate_center_y, plate_z)`` so the plate's right
-    edge sits at the anchor X, its vertical center at center_y, and it recedes with its plate.
+    group's LOCAL origin is the caption plate's LEFT edge at its vertical center (issue 332
+    relayout — captions are LEFT-aligned with their slide); the plate spans local X in
+    ``[0, width]`` and Y in ``[-h/2, +h/2]``. ``place_plates`` sets the group to
+    ``(caption_anchor_x, caption_plate_center_y, plate_z)`` so the plate's LEFT edge sits at
+    the anchor X (the slide left edge), its vertical center at center_y, and it recedes with
+    its plate.
 
     Components (all parented to the group, all unlit/emissive, all alpha-keyframed together):
     - fill: a solid white (#ffffff) OPAQUE plane covering the rectangle;
@@ -538,7 +540,8 @@ def create_caption(plate_job: dict, job: dict, index: int) -> tuple[object, list
     fill.name = f"CaptionFill_{index:02d}"
     fill.scale = (width / 2.0, hh, 1.0)
     bpy.ops.object.transform_apply(scale=True)
-    fill.location = (-width / 2.0, 0.0, 0.0)
+    # Issue 332: LEFT-edge local origin → the plate spans X in [0, width]; center at +width/2.
+    fill.location = (width / 2.0, 0.0, 0.0)
     fill_mat = _make_unlit_material(f"CaptionFillMat_{index:02d}", fill_color, 1.0)
     fill.data.materials.append(fill_mat)
     fill.parent = group
@@ -556,10 +559,11 @@ def create_caption(plate_job: dict, job: dict, index: int) -> tuple[object, list
             verts.extend([(x0, y0, zf), (x1, y0, zf), (x1, y1, zf), (x0, y1, zf)])
             faces.append((base, base + 1, base + 2, base + 3))
 
-        _quad(-width, hh - t, 0.0, hh)  # top
-        _quad(-width, -hh, 0.0, -hh + t)  # bottom
-        _quad(-width, -hh + t, -width + t, hh - t)  # left
-        _quad(-t, -hh + t, 0.0, hh - t)  # right
+        # Issue 332: LEFT-edge origin → quads frame X in [0, width], Y in [-hh, hh].
+        _quad(0.0, hh - t, width, hh)  # top
+        _quad(0.0, -hh, width, -hh + t)  # bottom
+        _quad(0.0, -hh + t, t, hh - t)  # left
+        _quad(width - t, -hh + t, width, hh - t)  # right
         mesh = bpy.data.meshes.new(f"CaptionBorderMesh_{index:02d}")
         mesh.from_pydata(verts, [], faces)
         mesh.update()
@@ -570,8 +574,8 @@ def create_caption(plate_job: dict, job: dict, index: int) -> tuple[object, list
         border.parent = group
         mats.append(border_mat)
 
-    # --- Text: centered in the plate, slightly in front of the fill ---
-    text_obj.location = (-width / 2.0, 0.0, max(1.0, edge_w * 0.5))
+    # --- Text: centered in the plate (X = +width/2 with LEFT-edge origin), in front of fill ---
+    text_obj.location = (width / 2.0, 0.0, max(1.0, edge_w * 0.5))
     text_obj.parent = group
     mats.append(text_obj.data.materials[0])
 
@@ -679,23 +683,25 @@ def place_plates(
     anchor_x: float,
     center_y: float,
     floor_y: float,
+    slide_lift: float = 0.0,
     reflections: list | None = None,
     borders: list | None = None,
     frame: int | None = None,
 ) -> None:
     """Set (and optionally keyframe) plate + caption-plate + decoration positions for a frame.
 
-    Plates are centered at ``(0, 0, z)`` (height along ``Y`` centered at 0, stacked along
-    ``Z``). Caption plates have their RIGHT edge at ``anchor_x`` and their vertical CENTER at
-    ``center_y``, recessed to the plate's ``Z`` (issue 311). Reflections sit at
-    ``(0, 2*floor_y, z)`` — the plate center (Y=0) mirrored across the floor line, with their
-    material flipping the image (issue 303 §1). Borders track the plate at ``(0, 0, z)``
-    (issue 305). ``anchor_x``/``center_y``/``floor_y`` are already in mesh coordinate space.
-    Floor shadows were removed (issue 312).
+    Plates are LIFTED to ``(0, slide_lift, z)`` (issue 332: each slide sits on top of its
+    on-floor caption plate; ``slide_lift`` is one caption-plate height, or 0 when captions are
+    off). Caption plates have their LEFT edge at ``anchor_x`` (the slide left edge) and their
+    vertical CENTER at ``center_y`` (on the floor), recessed to the plate's ``Z`` (issue 311).
+    Reflections sit at ``(0, 2*floor_y - slide_lift, z)`` — the lifted plate center mirrored
+    across the floor line, with their material flipping the image (issue 303 §1). Borders track
+    the lifted plate at ``(0, slide_lift, z)`` (issue 305). ``anchor_x``/``center_y``/``floor_y``
+    are already in mesh coordinate space. Floor shadows were removed (issue 312).
     """
     z_positions = plate_z_positions(gaps)
     for plate, z in zip(plates, z_positions, strict=True):
-        plate.location = (0.0, 0.0, z)
+        plate.location = (0.0, slide_lift, z)
         if frame is not None:
             plate.keyframe_insert(data_path="location", frame=frame)
     for cap, z in zip(captions, z_positions, strict=True):
@@ -712,15 +718,15 @@ def place_plates(
         for refl, z in zip(reflections, z_positions, strict=True):
             if refl is None:
                 continue
-            # Plate center is Y=0; its mirror across the floor line is Y = 2*floor_y - 0.
-            refl[0].location = (0.0, 2.0 * floor_y, z)
+            # Plate center is Y=slide_lift; its mirror across the floor line is 2*floor_y - lift.
+            refl[0].location = (0.0, 2.0 * floor_y - slide_lift, z)
             if frame is not None:
                 refl[0].keyframe_insert(data_path="location", frame=frame)
     if borders is not None:
         for border, z in zip(borders, z_positions, strict=True):
             if border is None:
                 continue
-            border[0].location = (0.0, 0.0, z)
+            border[0].location = (0.0, slide_lift, z)
             if frame is not None:
                 border[0].keyframe_insert(data_path="location", frame=frame)
 
@@ -836,6 +842,7 @@ def render_still(
     anchor_x: float,
     center_y: float,
     floor_y: float,
+    slide_lift: float,
     reflections,
     refl_nodes,
     borders,
@@ -850,6 +857,7 @@ def render_still(
         anchor_x,
         center_y,
         floor_y,
+        slide_lift,
         reflections=reflections,
         borders=borders,
     )
@@ -876,6 +884,7 @@ def render_animation(
     anchor_x: float,
     center_y: float,
     floor_y: float,
+    slide_lift: float,
     reflections,
     refl_nodes,
     borders,
@@ -892,6 +901,7 @@ def render_animation(
             anchor_x,
             center_y,
             floor_y,
+            slide_lift,
             reflections=reflections,
             borders=borders,
             frame=fi,
@@ -978,6 +988,9 @@ def main() -> None:
     # Caption-plate vertical center Y (issue 311); same scene-coordinate units as the
     # scaled plate meshes, so it passes through unchanged (see anchor_x note above).
     center_y: float = float(job.get("caption_plate_center_y", 0.0))
+    # Issue 332: vertical lift added to every slide plate so it sits on top of its on-floor
+    # caption plate (0 when captions are off). Same scene-coordinate units as the scaled meshes.
+    slide_lift: float = float(job.get("slide_lift", 0.0))
 
     floor_y = floor_y_of(job)
 
@@ -1010,6 +1023,7 @@ def main() -> None:
             anchor_x,
             center_y,
             floor_y,
+            slide_lift,
             reflections,
             refl_nodes,
             borders,
@@ -1024,6 +1038,7 @@ def main() -> None:
             anchor_x,
             center_y,
             floor_y,
+            slide_lift,
             reflections,
             refl_nodes,
             borders,

@@ -56,6 +56,42 @@ class Transition(BaseModel):
     easing: Easing = "easeInOutCubic"
 
 
+class Video(BaseModel):
+    """Video render parameters centralized in the scene (issue 335 §3).
+
+    Engines read these for video rendering, overriding the legacy ``transition``-derived
+    values. ``transition`` still owns the ANIMATION definition (``kind``/``easing``/``wait``/
+    ``duration``); ``video`` owns the OUTPUT framing (dimensions/fps/frame counts/held stills).
+
+    Precedence (documented, issue 335 §3):
+
+    * ``width``/``height`` default to ``scene.size`` when ``None``.
+    * ``fps`` (default ``None``) overrides ``transition.fps`` for video rendering when set;
+      when ``None`` it falls back to ``transition.fps`` (else 30), preserving prior behavior.
+    * ``frames`` is the number of TRANSITION frames PER LEG. ``None`` (default) preserves the
+      legacy behavior: ``round(transition.duration * fps)`` frames per leg.
+    * ``first_hold``/``last_hold`` (default 10 each) prepend/append that many copies of the
+      first/last :class:`~vexy_stax.geometry.FrameState` so the clip holds the opening and
+      closing stills (still → transition → still). Set to 0 to disable.
+
+    Any of these can be overridden at the call site (function args / CLI flags) without
+    editing the scene file.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    width: int | None = Field(default=None, ge=1, description="Video width; null ⇒ scene.size.width.")
+    height: int | None = Field(default=None, ge=1, description="Video height; null ⇒ scene.size.height.")
+    fps: int | None = Field(
+        default=None, ge=1, description="Video fps; null ⇒ transition.fps (else 30). Overrides when set."
+    )
+    frames: int | None = Field(
+        default=None, ge=1, description="Transition frames PER LEG; null ⇒ round(transition.duration * fps)."
+    )
+    first_hold: int = Field(default=10, ge=0, description="Held copies of the FIRST frame (still intro).")
+    last_hold: int = Field(default=10, ge=0, description="Held copies of the LAST frame (still outro).")
+
+
 class Floor(BaseModel):
     """Floor plane appearance — smoked glass that blurrily reflects the plates (issue 303 §1).
 
@@ -168,10 +204,18 @@ class Scene(BaseModel):
     size: Size = Field(default_factory=Size)
     camera: Camera = Field(default_factory=Camera)
     transition: Transition | None = None
+    # Issue 335 §3: video render params (dimensions/fps/frame counts/held stills). Always present
+    # with defaults so engines can read scene.video without a None check; defaults preserve the
+    # prior showcase behavior (held frames default to 10/10).
+    video: Video = Field(default_factory=Video)
     floor: Floor = Field(default_factory=Floor)
     edge: Edge = Field(default_factory=Edge)  # issue 305: visible plate border (default-on)
     background: str = "#ffffff"
     juicy: bool = False
+    # Issue 332: global captions on/off toggle. When ON (default — preserves prior behavior),
+    # each slide plate sits ON TOP of its on-floor caption plate (the stacked layout). When
+    # OFF, no caption plates are drawn and the slide plates sit directly on the floor.
+    captions: bool = True
     caption_defaults: CaptionStyle | None = None
     caption_fade: CaptionFade | None = None
     slides: list[Slide] = Field(min_length=1, description="Ordered back-to-front; index 0 is farthest.")

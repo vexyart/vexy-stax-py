@@ -15,8 +15,8 @@
     "width": 0
   },
   "floor": {
-    "color": "#f2f2f2",
-    "opacity": 0.1,
+    "color": "#ffffff",
+    "opacity": 0,
     "reflectivity": 0.1
   },
   "juicy": false,

@@ -125,22 +125,38 @@ def caption_plate_height(scene: Scene) -> float:
 
 
 def caption_plate_center_y(scene: Scene) -> float:
-    """World Y of a caption plate's vertical center (issue 311).
+    """World Y of a caption plate's vertical center (issue 311; relayout issue 332).
 
-    The caption plate sits on the virtual ground (the floor at ``Y = -height/2``), so its
-    center is half its height above the ground. This places the captions low, beneath/left
-    of the deck, matching the reference layout.
+    The caption plate sits RIGHT ON the floor (its BOTTOM edge on the floor line at
+    ``Y = -height/2``), so its center is half its plate height above the ground. The slide
+    plate then sits directly on TOP of the caption plate (see :func:`slide_lift`), matching
+    the issue 332 stacked layout.
     """
     return -(scene.size.height / 2.0) + caption_plate_height(scene) / 2.0
 
 
-def caption_anchor_x(scene: Scene) -> float:
-    """World X where every caption's RIGHT edge aligns — 2em left of the plate left edge.
+def slide_lift(scene: Scene) -> float:
+    """World Y offset added to EVERY slide plate's vertical center (issue 332).
 
-    All plates share ``scene.size`` width and are centered at ``X = 0``, so the plate left
-    edge is ``-width/2``; captions right-align there minus a ``CAPTION_GAP_EM`` em gap
-    (issue 302 §B). Engines anchor each caption's text block right edge here at the plate's
-    ``Z``, with the baseline at :func:`caption_baseline_y`.
+    With captions ON, each slide plate sits directly on TOP of its caption plate: the slide
+    bottom edge == the caption plate top edge. The caption plate stands on the floor and is
+    ``caption_plate_height`` tall, so the slide is lifted by exactly one caption-plate height
+    relative to the centered (``Y = 0``) convention. With captions OFF there are no caption
+    plates and the slide plates sit directly on the floor, so the lift is 0 (slide plate
+    center back at ``Y = 0`` — bottom edge on the floor line for the tallest plate).
+    """
+    return caption_plate_height(scene) if scene.captions else 0.0
+
+
+def caption_anchor_x(scene: Scene) -> float:
+    """World X where every caption plate's LEFT edge aligns (issue 332 relayout).
+
+    Each caption plate is LEFT-aligned with its slide plate: the caption plate left edge
+    sits at the slide left edge. All plates share ``scene.size`` width centered at ``X = 0``,
+    so the slide (and caption) left edge is ``-width/2``. Engines anchor each caption plate's
+    LEFT edge here, just below the slide, at the plate's ``Z``. (``CAPTION_GAP_EM`` is 0, so
+    the numeric value is unchanged from the prior right-edge anchor; only the meaning — now a
+    LEFT edge — changed for the stacked layout.)
     """
     return -(scene.size.width / 2.0 + CAPTION_GAP_EM * caption_size(scene))
 
@@ -291,16 +307,26 @@ def expanded_camera(scene: Scene, viewport_aspect: float | None = None) -> Camer
     half_h_plate = scene.size.height / 2.0
     z_positions = _stack_positions(plate_gaps(scene))
 
+    # Issue 332: slides are LIFTED by one caption-plate height (captions on) so they sit on
+    # top of their on-floor caption plates. The full composite the camera must frame (NO crop)
+    # spans, vertically, from the floor line (caption-plate bottom == ``-H/2``) up to the
+    # lifted slide top (``lift + H/2``). Include the lifted slide corners AND the caption-plate
+    # bottom corners so the bounding fit never crops the caption row.
+    lift = slide_lift(scene)
+    floor_y = -half_h_plate  # caption plate bottom (and floor line) in world Y
+    slide_y_lo, slide_y_hi = lift - half_h_plate, lift + half_h_plate
+    cap_ys = [floor_y] if scene.captions else []  # extra bottom row (caption plate bottom)
+
     # Precompute each corner's (right, up, look) components relative to base_target,
     # so projecting at a candidate (distance D, horizontal pan) is cheap and exact.
     # cr/cu/cl: offsets along right/up/look. ndc_x = (cr - pan)/((cl + D)*th).
     corners: list[tuple[float, float, float]] = []
     centers: list[tuple[float, float]] = []  # (right-offset, look-offset) of each plate center
     for z in z_positions:
-        rel_c = _sub((0.0, 0.0, z), base_target)
+        rel_c = _sub((0.0, lift, z), base_target)
         centers.append((_dot(rel_c, right), _dot(rel_c, look)))
         for sx in (-half_w_plate, half_w_plate):
-            for sy in (-half_h_plate, half_h_plate):
+            for sy in (slide_y_lo, slide_y_hi, *cap_ys):
                 rel = _sub((sx, sy, z), base_target)
                 corners.append((_dot(rel, right), _dot(rel, up), _dot(rel, look)))
 
@@ -396,7 +422,14 @@ def compact_camera(scene: Scene, viewport_aspect: float | None = None) -> Camera
     """
     cam = scene.camera
     depth = stack_depth(scene, "compact")
-    target = (0.0, 0.0, -depth / 2.0)
+    # Issue 332: the frontmost COMPOSITE the head-on camera frames is the slide plate plus
+    # (captions on) its on-floor caption plate stacked below it. The composite spans full
+    # width ``W`` and height ``H + lift`` (lift == one caption-plate height), vertically
+    # centered at ``Y = lift/2`` (floor at ``-H/2`` up to the lifted slide top ``lift+H/2``).
+    # Aim the camera at that composite center so neither the slide nor the caption row crops.
+    lift = slide_lift(scene)
+    composite_h = scene.size.height + lift
+    target = (0.0, lift / 2.0, -depth / 2.0)
 
     is_percent = False
     pct_val = 90.0
@@ -411,15 +444,15 @@ def compact_camera(scene: Scene, viewport_aspect: float | None = None) -> Camera
 
     if is_percent:
         # Dual-axis crop-free fit (SPEC.md §3, issue 302 §1): fit the frontmost
-        # plate (scene.size) so the *limiting* axis touches P% of the frame and the
-        # other axis only ever has extra padding (never a crop). theta_horiz = fov;
-        # theta_vert derived from the VIEWPORT aspect; distance = max(d_w, d_h).
+        # COMPOSITE (width ``W``, height ``H + lift``) so the *limiting* axis touches P% of the
+        # frame and the other axis only ever has extra padding (never a crop). theta_horiz =
+        # fov; theta_vert derived from the VIEWPORT aspect; distance = max(d_w, d_h).
         hfov = math.radians(cam.fov)
         aspect = viewport_aspect if viewport_aspect else scene.size.width / scene.size.height
         vfov = 2.0 * math.atan(math.tan(hfov / 2.0) / aspect)
         frac = pct_val / 100.0
         d_w = scene.size.width / (2.0 * math.tan(hfov / 2.0) * frac)
-        d_h = scene.size.height / (2.0 * math.tan(vfov / 2.0) * frac)
+        d_h = composite_h / (2.0 * math.tan(vfov / 2.0) * frac)
         dist_to_Z0 = max(d_w, d_h)
         distance = dist_to_Z0 + depth / 2.0
     else:
@@ -473,6 +506,9 @@ def caption_opacities(scene: Scene, t_expanded: float) -> list[float]:
     ``compact`` → fades out linearly as the deck expands. Slides without a caption → 0.
     """
     t = max(0.0, min(1.0, t_expanded))
+    # Issue 332: a global captions=false toggle suppresses ALL caption plates everywhere.
+    if not scene.captions:
+        return [0.0] * len(scene.slides)
     cf = scene.caption_fade
     window = cf.window if cf is not None else CAPTION_FADE_WINDOW
     stagger = cf.stagger if cf is not None else CAPTION_STAGGER
@@ -547,21 +583,72 @@ _LEGS: dict[str, list[tuple[float, float]]] = {
 }
 
 
-def frame_plan(scene: Scene) -> list[FrameState]:
+def video_fps(scene: Scene) -> int:
+    """Resolve the video frame rate (issue 335 §3).
+
+    Precedence: ``scene.video.fps`` when set (it overrides for VIDEO rendering), else the legacy
+    ``scene.transition.fps`` (so an unmodified scene keeps its prior frame rate), else 30. All
+    engines read this for the encoder frame rate so the held stills and the transition play back
+    at one consistent rate.
+    """
+    if scene.video.fps is not None:
+        return scene.video.fps
+    if scene.transition is not None:
+        return scene.transition.fps
+    return 30
+
+
+def video_dimensions(scene: Scene) -> tuple[int, int]:
+    """Resolve the video (width, height) (issue 335 §3): ``scene.video`` else ``scene.size``."""
+    v = scene.video
+    width = v.width if v.width is not None else scene.size.width
+    height = v.height if v.height is not None else scene.size.height
+    return width, height
+
+
+def transition_frames(scene: Scene) -> int:
+    """Resolve the number of TRANSITION frames per leg (issue 335 §3).
+
+    ``scene.video.frames`` is authoritative when set; otherwise it falls back to the legacy
+    ``round(transition.duration * video.fps)`` so the default preserves prior behavior. Zero
+    when there is no transition.
+    """
+    tr = scene.transition
+    if tr is None:
+        return 0
+    if scene.video.frames is not None:
+        return scene.video.frames
+    return round(tr.duration * video_fps(scene))
+
+
+def frame_plan(
+    scene: Scene,
+    first_hold: int | None = None,
+    last_hold: int | None = None,
+) -> list[FrameState]:
     """Per-frame states for ``scene.transition`` (empty when no transition).
 
-    Layout: each leg renders ``round(duration*fps)`` frames; a hold of
-    ``round(wait*fps)`` frames is inserted at the far end of each leg (i.e. after
-    reaching the destination of every leg). Total length is therefore
-    ``legs * (round(duration*fps) + round(wait*fps))``.
+    Layout (issue 335 §2/§3): the transition itself renders ``transition_frames`` frames per
+    leg (``scene.video.frames`` when set, else ``round(duration*video.fps)``); a hold of
+    ``round(wait*video.fps)`` frames is inserted at the far end of each leg. The whole clip is
+    then bookended with HELD STILLS — ``first_hold`` copies of the FIRST FrameState prepended
+    and ``last_hold`` copies of the LAST FrameState appended (still → transition → still). The
+    holds default to ``scene.video.first_hold`` / ``scene.video.last_hold`` (10 each); pass
+    explicit ints to override per call. Held frames are exact copies of the boundary states, so
+    every engine (which simply consumes this list) keyframes the repeats correctly.
+
+    Total length: ``first_hold + legs * (transition_frames + round(wait*fps)) + last_hold``.
     """
     tr = scene.transition
     if tr is None:
         return []
+    fh = scene.video.first_hold if first_hold is None else first_hold
+    lh = scene.video.last_hold if last_hold is None else last_hold
     compact = compact_camera(scene)
     expanded = expanded_camera(scene)
-    leg_frames = round(tr.duration * tr.fps)
-    wait_frames = round(tr.wait * tr.fps)
+    fps = video_fps(scene)
+    leg_frames = transition_frames(scene)
+    wait_frames = round(tr.wait * fps)
     legs = _LEGS[tr.kind]
 
     states: list[FrameState] = []
@@ -575,4 +662,12 @@ def frame_plan(scene: Scene) -> list[FrameState]:
         # hold at the leg destination
         hold = _frame_state(scene, compact, expanded, end)
         states.extend(hold for _ in range(wait_frames))
-    return states
+
+    # Issue 335 §2: bookend with held stills — repeat the first/last FrameState so the clip
+    # opens and closes on a still image (default 10 frames each, default-on). Empty plans
+    # (no leg/wait frames) get no holds: there is nothing to hold.
+    if not states:
+        return states
+    head = [states[0]] * max(0, fh)
+    tail = [states[-1]] * max(0, lh)
+    return head + states + tail

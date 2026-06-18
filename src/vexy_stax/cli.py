@@ -45,9 +45,38 @@ class Stax:
         name = engine or _DEFAULT_IMAGE_ENGINE
         self._run(name, lambda e: e.render_image(sc, view, Path(out)), out)
 
-    def video(self, scene: str, engine: str | None = None, out: str = "out.mp4") -> None:
-        """Render SCENE's transition to a video file."""
+    def video(
+        self,
+        scene: str,
+        engine: str | None = None,
+        out: str = "out.mp4",
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
+        frames: int | None = None,
+        first_hold: int | None = None,
+        last_hold: int | None = None,
+    ) -> None:
+        """Render SCENE's transition to a video file.
+
+        Video params come from the scene's ``video`` section (issue 335 §3); any of
+        ``width``/``height``/``fps``/``frames``/``first_hold``/``last_hold`` given here override
+        the scene values for this render (``first_hold``/``last_hold`` are the held first/last
+        still-frame counts, default 10 each).
+        """
         sc = load_scene(scene)
+        if width is not None:
+            sc.video.width = width
+        if height is not None:
+            sc.video.height = height
+        if fps is not None:
+            sc.video.fps = fps
+        if frames is not None:
+            sc.video.frames = frames
+        if first_hold is not None:
+            sc.video.first_hold = first_hold
+        if last_hold is not None:
+            sc.video.last_hold = last_hold
         name = engine or _DEFAULT_VIDEO_ENGINE
         self._run(name, lambda e: e.render_video(sc, Path(out)), out)
 

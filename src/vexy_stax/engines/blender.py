@@ -24,10 +24,11 @@ Render-job schema (what ``_build_*`` emits and ``_blender_render.py`` consumes):
       "video": bool,                           # true ⇒ render the frame sequence
       "fps": int,                              # only used for video
       "output": "/abs/path.png|.mp4",
-      "caption_anchor_x": float,              # world X for caption-plate RIGHT edge
+      "caption_anchor_x": float,              # world X for caption-plate LEFT edge (issue 332)
       "caption_plate_center_y": float,        # world Y for caption-plate vertical center
       "caption_plate_height": float,          # caption-plate height (== caption_size/0.75)
       "caption_pad_em": float,                # horizontal pad each side (× caption size)
+      "slide_lift": float,                    # world Y lift of each slide plate (issue 332)
       "plates": [                              # one per slide, back-to-front
         {"path": "/abs.png", "reflection_path": "/abs.png"|null,
          "width": int, "height": int,
@@ -159,7 +160,8 @@ def _plate_jobs(scene: Scene) -> list[dict]:
     jobs: list[dict] = []
     for slide, info in zip(scene.slides, infos, strict=True):
         caption = None
-        if slide.caption is not None:
+        # Issue 332: the global captions toggle suppresses ALL caption plates.
+        if scene.captions and slide.caption is not None:
             style = _caption_style(scene, slide)
             # Default to the shared nominal caption size so 1em == size (matches the
             # em-based anchor/baseline) and stays consistent across engines.
@@ -267,6 +269,9 @@ def _base_job(scene: Scene, out: Path, *, video: bool) -> dict:
         "caption_plate_center_y": geo.caption_plate_center_y(scene),
         "caption_plate_height": geo.caption_plate_height(scene),
         "caption_pad_em": geo.CAPTION_PLATE_PAD_EM,
+        # Issue 332: vertical lift (world Y) added to every slide plate so it sits ON TOP of its
+        # on-floor caption plate (0 when captions are off → slides on the floor).
+        "slide_lift": geo.slide_lift(scene),
         # Caption plate fill + border colors (issue 324): independently overridable, each
         # defaulting to scene.edge.color (so by default caption fill == caption border == slide border).
         "caption_fill_color": geo.caption_fill_color(scene),
@@ -288,6 +293,10 @@ def _build_video_job(scene: Scene, out: Path) -> dict:
     plan = geo.frame_plan(scene)
 
     job = _base_job(scene, out, video=True)
+    # Issue 335 §3: video dimensions + fps come from scene.video (default to scene.size / 30),
+    # overriding the still-render size in the shared base job and transition.fps.
+    job["width"], job["height"] = geo.video_dimensions(scene)
+    job["fps"] = geo.video_fps(scene)
     frames = []
     for state in plan:
         frames.append(
