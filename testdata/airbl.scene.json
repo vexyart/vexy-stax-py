@@ -1,10 +1,10 @@
 {
   "background": "#ffffff",
   "camera": {
-    "angle": 60,
     "distance": "100%",
-    "elevation": 5,
-    "fov": 39.6,
+    "angle": 60,
+    "elevation": 6,
+    "fov": 1,
     "gap": 4030
   },
   "caption_defaults": {
@@ -17,7 +17,7 @@
   "floor": {
     "color": "#ffffff",
     "opacity": 0,
-    "reflectivity": 0.1
+    "reflectivity": 0.0
   },
   "juicy": false,
   "size": {
@@ -49,21 +49,21 @@
     {
       "caption": {
         "show_in": "expanded",
-        "text": "Trace fill"
+        "text": "Handmade fill"
       },
       "src": "airbl/airbl-050-backdrop.png"
     },
     {
       "caption": {
         "show_in": "expanded",
-        "text": "Trace fill"
+        "text": "Handmade fill"
       },
       "src": "airbl/airbl-060-outline.png"
     },
     {
       "caption": {
         "show_in": "expanded",
-        "text": "Trace fill"
+        "text": "Handmade fill"
       },
       "src": "airbl/airbl-070-inline.png"
     },
