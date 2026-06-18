@@ -450,11 +450,24 @@ def _text_unlit_material(name: str, color: tuple) -> object:
     return _make_unlit_material(name, color, 1.0)
 
 
+# Issue 340: Blender's TextCurve ``size`` does NOT map to the typographic em the way the canvas
+# engines (pygfx/playwright) do — for the bundled font, a Blender text at ``size = S`` renders an
+# em only ~0.71 × the canvas text at the same nominal size, so Blender captions (text AND the
+# text-derived plate width) came out visibly smaller than the other engines. Scale the Blender
+# font size up by the inverse so all three engines match. Measured from the advance width of
+# "Source image" at size 1000: pygfx 8312.5 vs blender 5907.9 → 1.407 (the advance width is the
+# stable cross-engine ratio since both use the same font; the bundled vexy-stax face). A decent
+# match per issue 340 — not exact, and mildly font-dependent.
+_CAPTION_FONT_SIZE_BLENDER_CORRECTION = 1.41
+
+
 def _build_caption_text(text: str, size: float, color: tuple, font_value: str, index: int) -> object:
     """Create a CENTERED (H+V) Blender text object at the origin sized ``size`` world units.
 
-    The text size equals the caption size directly (1em == size, scene-point world units).
-    Returns the text object (origin at its visual center via ``align_x/y == CENTER``).
+    The caption size is the canvas-engine em; Blender's font ``size`` maps to a smaller em, so it
+    is scaled by ``_CAPTION_FONT_SIZE_BLENDER_CORRECTION`` (issue 340) so the rendered caption
+    matches pygfx/playwright. Returns the text object (origin at its visual center via
+    ``align_x/y == CENTER``).
     """
     bpy.ops.object.text_add(location=(0, 0, 0))
     obj = bpy.context.active_object
@@ -464,7 +477,7 @@ def _build_caption_text(text: str, size: float, color: tuple, font_value: str, i
     # the object at the plate center then centers the text in the plate (issue 311).
     obj.data.align_x = "CENTER"
     obj.data.align_y = "CENTER"
-    obj.data.size = max(8.0, size)
+    obj.data.size = max(8.0, size * _CAPTION_FONT_SIZE_BLENDER_CORRECTION)
 
     # Best-effort font loading: if the value looks like an existing file path, load it into
     # Blender's font library; otherwise fall back to the built-in default.

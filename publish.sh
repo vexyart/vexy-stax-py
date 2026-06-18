@@ -90,7 +90,11 @@ publish_to_pypi() {
 
 echo -e "${BLUE}Publishing vexy-stax...${NC}"
 
-uvx gitnextver
+# Issue 338: bump this repo's version tag — hatch-vcs derives the published Python version
+# from the newest git tag. Skip on a dry run (a dry run must not mutate git).
+if [ "$DRYRUN" -eq 0 ]; then
+    uvx gitnextver
+fi
 
 # Step 1: clean build (lint + test + wheel/sdist). build.sh wipes dist/ first.
 echo -e "${YELLOW}→ Building...${NC}"
