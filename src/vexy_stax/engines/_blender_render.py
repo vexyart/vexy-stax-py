@@ -178,8 +178,8 @@ def create_floor(job: dict) -> object:
     pygfx/JS floor so all engines frame the deck identically.
     """
     floor_cfg = job.get("floor", {})
-    color = _hex_to_rgb(floor_cfg.get("color", "#1a1a1a"))
-    opacity = float(floor_cfg.get("opacity", 0.04))
+    color = _hex_to_rgb(floor_cfg.get("color", "#ffffff"))  # default: invisible pane (opacity 0)
+    opacity = float(floor_cfg.get("opacity", 0.0))
 
     floor_y = floor_y_of(job)
 
@@ -837,7 +837,7 @@ def _apply_decoration_alphas(
     (so the frame fades with its plate). Both fade with the plate's per-frame opacity
     (issues 303/305). Floor shadows were removed (issue 312).
     """
-    reflectivity = float(job.get("floor", {}).get("reflectivity", 0.5))
+    reflectivity = float(job.get("floor", {}).get("reflectivity", 0.1))
     for node, alpha in zip(refl_nodes, opacities, strict=True):
         if node is not None:
             set_plate_alpha(node, alpha * reflectivity, frame=frame)

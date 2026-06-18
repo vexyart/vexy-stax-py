@@ -19,6 +19,14 @@ Given a set of layered PNG images and a JSON scene file, vexy-stax renders:
 
 All geometry — camera placement, plate spacing, caption positioning — is computed from the same formulas in both the Python and JavaScript packages, so renders are visually identical across all four renderers (three Python engines + JS).
 
+## Live demos
+
+See the browser renderer (**vexy-stax-js**) in action:
+
+- [Animated demo](https://vexy.dev/vexy-stax-js/playable.html) — play the compact ↔ expanded transition, or toggle the two views by hand
+- [Scrollspy demo](https://vexy.dev/vexy-stax-js/scrollable.html) — a scroll-driven story where the deck rises into view and unfolds as you scroll
+- [vexy-stax-js home](https://vexy.dev/vexy-stax-js/) — the JS package landing page (Web Component · ESM · global script)
+
 ## Quick start
 
 ```bash
@@ -54,4 +62,4 @@ vexy-stax video scene.json --out morph.mp4
 
 ## License
 
-MIT — Copyright 2026 Adam Twardoch / VexyArt
+MIT — Copyright 2026 Fontlab Ltd.

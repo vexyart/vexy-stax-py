@@ -90,12 +90,13 @@ def test_transition_parsed() -> None:
     assert scene.transition.fps == 20
 
 
-def test_floor_smoked_glass_defaults() -> None:
-    """Issue 303 §1: the floor defaults to ~4% smoked glass (just so visible)."""
+def test_floor_invisible_pane_faint_reflection_defaults() -> None:
+    """Issue 342 follow-up: floor defaults to NO visible pane (white, opacity 0) + faint
+    reflections (reflectivity 0.1) — clean on a white page, no grey smoked-glass shadow."""
     scene = Scene.model_validate({"version": 1, "slides": [{"src": "a.png"}]})
-    assert scene.floor.opacity == pytest.approx(0.04)
-    assert scene.floor.color == "#1a1a1a"
-    assert scene.floor.reflectivity == pytest.approx(0.5)
+    assert scene.floor.opacity == pytest.approx(0.0)
+    assert scene.floor.color == "#ffffff"
+    assert scene.floor.reflectivity == pytest.approx(0.1)
 
 
 def test_edge_off_by_default_color_f2f2f2() -> None:

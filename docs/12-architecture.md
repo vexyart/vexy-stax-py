@@ -195,6 +195,6 @@ The scene format is versioned. `version: 1` is the current version. Adding new o
 
 ## License
 
-- **vexy-stax-py**: MIT — Copyright 2026 Adam Twardoch / VexyArt
-- **vexy-stax-js**: Apache-2.0 — Copyright 2026 Adam Twardoch / VexyArt
+- **vexy-stax-py**: MIT — Copyright 2026 Fontlab Ltd.
+- **vexy-stax-js**: Apache-2.0 — Copyright 2026 Fontlab Ltd.
 - **Bundled font** (`vexy-stax.ttf`, Zalando Sans): SIL Open Font License 1.1 (see `fonts/OFL.txt`)

@@ -4,6 +4,31 @@
 
 All notable changes to this project are documented here.
 
+## [3.0.14] — default floor
+
+### Changed
+
+- **Floor defaults to an invisible pane + faint reflections**: the `Floor` defaults changed from
+  the dated grey smoked glass (`#1a1a1a`, opacity 0.04, reflectivity 0.5) to `color #ffffff`,
+  `opacity 0.0` (no visible floor pane) and `reflectivity 0.1` (a faint blurred plate reflection) —
+  clean on a white page with no grey "shadow". Updated in `scene.py`, the schema, and the
+  `_blender_render.py` fallbacks; the JS package mirrors the same defaults. Raise `opacity` (and/or
+  darken `color`) for a visible floor.
+
+## [3.0.13] — issue 340
+
+### Fixed
+
+- **Blender captions rendered too small** (340): the Blender caption text — and, because the
+  caption plate width is derived from the measured text width, the caption badge — came out
+  visibly smaller than the pygfx/playwright captions (which agree). Root cause: Blender's
+  `TextCurve.size` does not map to the typographic em the way the canvas engines do — for the
+  bundled font a Blender text at `size = S` renders an em only ~0.71× the canvas text at the same
+  nominal size (measured from the "Source image" advance width at size 1000: pygfx 8312.5 vs
+  blender 5907.9). `_build_caption_text` now scales the Blender font size by
+  `_CAPTION_FONT_SIZE_BLENDER_CORRECTION = 1.41` (the inverse), so the rendered caption text and
+  badge match the other two engines. A decent match (per the issue), mildly font-dependent.
+
 ## [3.0.12] — issue 337
 
 ### Fixed

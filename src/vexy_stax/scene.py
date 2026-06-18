@@ -93,17 +93,19 @@ class Video(BaseModel):
 
 
 class Floor(BaseModel):
-    """Floor plane appearance — smoked glass that blurrily reflects the plates (issue 303 §1).
+    """Floor plane appearance — a (by default invisible) pane that blurrily reflects the plates.
 
-    Default is a 'just so visible' dark smoked glass (4% opacity) with reflective,
-    blurred plate reflections. ``reflectivity`` scales the reflection strength.
+    Default (issue 342 follow-up): no visible floor PANE (white, ``opacity`` 0.0) but a faint
+    blurred reflection of the plates (``reflectivity`` 0.1) — clean on a white page, no grey
+    smoked-glass "shadow". Raise ``opacity`` (and/or darken ``color``) for a visible floor.
+    ``reflectivity`` scales the reflection strength.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    color: str = "#1a1a1a"  # smoked-glass tint (dark; barely visible on a light background)
-    opacity: float = Field(default=0.04, ge=0, le=1)  # ~4% — smoked glass, just so visible
-    reflectivity: float = Field(default=0.5, ge=0, le=1)
+    color: str = "#ffffff"  # floor pane tint (invisible by default since opacity is 0)
+    opacity: float = Field(default=0.0, ge=0, le=1)  # 0 = no visible floor pane (just reflections)
+    reflectivity: float = Field(default=0.1, ge=0, le=1)  # faint blurred plate reflections
 
 
 class Edge(BaseModel):

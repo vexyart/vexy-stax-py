@@ -15,6 +15,82 @@ nav_order: 11
 
 Source: `github.com/vexyart/vexy-stax-js` · npm: `vexy-stax-js`
 
+> **No build step?** Load it straight from the jsDelivr CDN:
+> `https://cdn.jsdelivr.net/npm/vexy-stax-js@3.1.2/dist/vexy-stax.element.js` (Web Component / ESM)
+> or `…/dist/vexy-stax.global.js` (global script). Every snippet below works verbatim from the CDN.
+
+---
+
+## Easiest path (issue 341)
+
+You do not need a scene JSON to get started — pass a **list of slide image URLs** and vexy-stax-js
+fills in sensible defaults.
+
+**Web Component** — the `slides` attribute (space/newline-separated URLs; local, `data:`, or remote):
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/npm/vexy-stax-js@3.1.2/dist/vexy-stax.element.js"></script>
+
+<vexy-stax
+  slides="layer-0.png layer-1.png https://example.com/layer-2.png"
+  view="compact" mode="playable">
+</vexy-stax>
+```
+
+**ES module** — `createStax(elOrSelector, opts)` (mirrors the one-call factory pattern):
+
+```js
+import { createStax } from "vexy-stax-js";
+
+const stax = await createStax("#stage", {
+  slides: ["layer-0.png", "https://example.com/layer-1.png"],
+  gap: 480,                    // expanded plate spacing (camera.gap shortcut)
+  transition: "expand_collapse",
+  mode: "playable",            // play the transition once when ready
+});
+```
+
+`opts` accepts `{ slides | scene, view, mode, trigger, width, height, clickToggle, baseUrl }` plus
+any scene override (`size`, `camera`, `gap`, `transition`, `background`, `captions`, `floor`, `edge`,
+`caption_defaults`, …) — forwarded to `makeScene`.
+
+**`makeScene(slides, opts)`** builds a valid scene object from a bare URL list (or `{src, caption,
+opacity, gap}` objects), filling defaults so even `makeScene(["a.png", "b.png"])` renders:
+
+```js
+import { makeScene, VexyStax } from "vexy-stax-js";
+const scene = makeScene(["a.png", "b.png", "c.png"], { gap: 480, transition: "expand_collapse" });
+const stax = new VexyStax(container, scene);
+```
+
+### Click-to-toggle (issue 342)
+
+For any interactive container (the `<vexy-stax>` element and every `createStax` instance),
+**clicking anywhere inside fluently toggles** compact↔expanded — if not compact it collapses, if
+compact it expands. It reuses the morph driver (a smooth `expand`/`collapse` leg — never a snap) and
+is **on by default**. Opt out with the `click-toggle="false"` attribute or `createStax(el, {
+clickToggle: false })`. In the scrollspy demo it works **on top of** the scroll-driven morph.
+
+Call it imperatively too: `await stax.toggleView()` (or `el.toggleView()`).
+
+### Scene-in-init (issue 342)
+
+Pass a full scene **object** at initialization — no URL, no fetch:
+
+```js
+// ESM
+await createStax("#stage", { scene: { version: 1, slides: [{ src: "a.png" }] }, view: "expanded" });
+
+// Web Component (property; also accepts the `config` property / attribute)
+document.querySelector("vexy-stax").scene = { version: 1, slides: [{ src: "a.png" }, { src: "b.png" }] };
+```
+
+### Remote slide images
+
+Slide `src` may be a local path, a `data:` URI, or a **remote `http(s)` URL**. The three.js texture
+loader uses `crossOrigin="anonymous"`, so images from a CORS-enabled server load **and** keep the
+canvas exportable (`toImage` / `toVideo`).
+
 ---
 
 ## Quick start
@@ -120,10 +196,15 @@ The `<vexy-stax>` custom element auto-registers when the element module is loade
 | Attribute | Values | Default | Description |
 |-----------|--------|---------|-------------|
 | `scene` | URL string | — | URL to the scene JSON file |
+| `slides` | space/newline-separated URLs | — | Easy path: build a scene from a bare image-URL list (issue 341) |
+| `captions` | `true` \| `false` | `true` | Toggle caption plates (used with `slides`) |
 | `view` | `expanded` \| `compact` | `expanded` | Initial view |
 | `mode` | `static` \| `playable` \| `scrollspy` | `static` | Interaction mode |
+| `click-toggle` | `true` \| `false` | `true` | Click-to-toggle compact↔expanded (issue 342); set `false` to opt out |
 | `width` | CSS dimension | container width | Canvas width override |
 | `height` | CSS dimension | container height | Canvas height override |
+
+Source precedence: inline `config`/`scene` **object** → `scene` URL → `slides` list.
 
 ### `config` property
 
