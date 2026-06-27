@@ -13,8 +13,8 @@ from PIL import Image
 from vexy_stax.images import overlay_images, read_images
 
 # Native dimensions / layer count of the airbl-lores slides (see conftest.py).
-LAYER_COUNT = 8
-LAYER_WIDTH = 1246
+LAYER_COUNT = 9
+LAYER_WIDTH = 1247
 LAYER_HEIGHT = 806
 
 

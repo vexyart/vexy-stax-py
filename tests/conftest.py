@@ -1,7 +1,7 @@
 # this_file: tests/conftest.py
 """Shared test fixtures.
 
-Uses the repo-local ``testdata/airbl-lores`` slides (8 layers, 1246x806) so the
+Uses the repo-local ``testdata/airbl-lores`` slides (9 layers, 1247x806) so the
 unit tests run fully standalone.
 """
 
@@ -16,6 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TESTDATA_DIR = PROJECT_ROOT / "testdata" / "airbl-lores"
 
 LAYER_FILES = [
+    "airbl-010-back.png",
     "airbl-020-source.png",
     "airbl-030-pink.png",
     "airbl-040-stars.png",
@@ -27,7 +28,7 @@ LAYER_FILES = [
 ]
 
 # Native dimensions of every airbl-lores layer.
-LAYER_WIDTH = 1246
+LAYER_WIDTH = 1247
 LAYER_HEIGHT = 806
 
 

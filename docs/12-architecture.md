@@ -29,7 +29,7 @@ vexy-stax-dev/
 │   │   ├── juicy.py                 Per-channel color correction
 │   │   └── cli.py                   fire + rich CLI
 │   ├── tests/                       pytest test suite
-│   ├── testdata/airbl-lores/        8 shared test slides (PNG)
+│   ├── testdata/airbl-lores/        9 shared test slide PNGs (010-back through 090-ui)
 │   └── docs/                        This documentation site
 └── vexy-stax-js/                    npm package
     ├── src/

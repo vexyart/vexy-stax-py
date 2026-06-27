@@ -2,7 +2,7 @@
   "$schema": "../vexy-stax-scene.schema.json",
   "version": 1,
   "view": "expanded",
-  "size": { "width": 1246, "height": 806 },
+  "size": { "width": 1247, "height": 806 },
   "camera": { "gap": 480, "distance": "100%", "angle": 60, "elevation": 0, "fov": 39.6 },
   "transition": { "kind": "expand_collapse", "duration": 3.0, "wait": 1.0, "fps": 30, "easing": "easeInOutCubic" },
   "floor": { "color": "#f2f2f2", "opacity": 1.0, "reflectivity": 0.5 },

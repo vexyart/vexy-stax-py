@@ -4,6 +4,15 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — fixture metadata sync
+
+### Fixed
+
+- Synced the `airbl-lores` tests and examples with the current committed fixture PNGs:
+  the directory now contains 9 layers (`010-back` through `090-ui`) at `1247x806`.
+  `dir2scene` correctly scans all directory images, so the CLI tests now expect the
+  generated first caption to be `Back` and the generated scene width to be 1247.
+
 ## [3.0.14] — default floor
 
 ### Changed

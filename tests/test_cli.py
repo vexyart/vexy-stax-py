@@ -24,10 +24,10 @@ def test_dir2scene_generates_valid_scene(tmp_path: Path) -> None:
     # Load and validate the scene using the package's loader
     scene = load_scene(out_json)
     assert scene.version == 1
-    assert len(scene.slides) == 8
+    assert len(scene.slides) == 9
 
-    # Width and height should match the airbl-lores images (1246x806)
-    assert scene.size.width == 1246
+    # Width and height should match the airbl-lores images (1247x806)
+    assert scene.size.width == 1247
     assert scene.size.height == 806
 
     # Verify that the slide paths are relative to the output JSON directory
@@ -127,9 +127,11 @@ def test_dir2scene_smart_captions(tmp_path: Path) -> None:
 
     scene = load_scene(out_json)
     # The airbl files have prefix "airbl-0" (or similar),
-    # resulting in clean capitalized title-case captions like "Source", "Pink", "UI".
+    # resulting in clean capitalized title-case captions like "Back", "Source", "UI".
     assert scene.slides[0].caption is not None
-    assert scene.slides[0].caption.text == "Source"
+    assert scene.slides[0].caption.text == "Back"
+    assert scene.slides[1].caption is not None
+    assert scene.slides[1].caption.text == "Source"
     assert scene.slides[-1].caption is not None
     assert scene.slides[-1].caption.text == "Ui"
 
