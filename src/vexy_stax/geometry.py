@@ -192,8 +192,18 @@ class FrameState:
 
 
 def plate_gaps(scene: Scene) -> list[float]:
-    """Per-slide gap (points), falling back to ``camera.gap`` when unset."""
-    return [scene.camera.gap if s.gap is None else s.gap for s in scene.slides]
+    """Per-slide gap (points), falling back to ``camera.gap`` when unset.
+
+    If 0 is used, then the same minimal gap between the plates is used as in the
+    compact gap (MIN_GAP).
+    """
+    gaps = []
+    for s in scene.slides:
+        g = scene.camera.gap if s.gap is None else s.gap
+        if g == 0.0:
+            g = MIN_GAP
+        gaps.append(g)
+    return gaps
 
 
 def stack_depth(scene: Scene, view: View) -> float:

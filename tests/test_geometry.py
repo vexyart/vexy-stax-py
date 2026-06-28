@@ -164,6 +164,30 @@ def test_plate_gaps_fallback(scene: Scene) -> None:
     assert all(x == pytest.approx(scene.camera.gap) for x in gaps)
 
 
+def test_plate_gaps_custom_and_zero(scene: Scene) -> None:
+    # Set slide 1 gap to 0, slide 2 gap to 100, camera.gap to 500
+    scene.camera.gap = 500.0
+    scene.slides[0].gap = None
+    scene.slides[1].gap = 0.0
+    scene.slides[2].gap = 100.0
+
+    gaps = g.plate_gaps(scene)
+    assert gaps[0] == pytest.approx(500.0)  # fallback to camera.gap
+    assert gaps[1] == pytest.approx(g.MIN_GAP)  # zero gap resolved to MIN_GAP
+    assert gaps[2] == pytest.approx(100.0)  # custom gap preserved
+
+    # Test camera.gap = 0.0 resolves to MIN_GAP for slides without override
+    scene.camera.gap = 0.0
+    scene.slides[0].gap = None
+    scene.slides[1].gap = None
+    scene.slides[2].gap = 100.0
+
+    gaps2 = g.plate_gaps(scene)
+    assert gaps2[0] == pytest.approx(g.MIN_GAP)
+    assert gaps2[1] == pytest.approx(g.MIN_GAP)
+    assert gaps2[2] == pytest.approx(100.0)
+
+
 def test_frame_plan_length(scene: Scene) -> None:
     # Issue 335 §2: default held first/last stills (10 each) bookend the clip.
     # expand_collapse: 2 legs; duration 4.0 * 20 = 80 frames/leg; wait 1.0 * 20 = 20.
