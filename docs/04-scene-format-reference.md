@@ -67,7 +67,7 @@ Canvas dimensions in pixels. These also serve as the nominal plate dimensions fo
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `gap` | number ≥ 0 | `1920` | Points between adjacent plates in the expanded view. Also the default per-slide gap. |
+| `gap` | number ≥ 0 | `1920` | Points between adjacent plates in the expanded view. Also the default per-slide gap. A value of 0 is resolved to MIN_GAP (3.0). |
 | `distance` | number or string | `"100%"` | Camera distance. A number or numeric string is absolute points. A `"P%"` string fits the frontmost plate so the limiting axis occupies `P%` of the viewport (dual-axis crop-free). |
 | `angle` | number | `60` | Azimuth degrees for the expanded camera. `0` = head-on (`+Z`); positive values swing toward `-X` (left-side view). |
 | `elevation` | number | `0` | Degrees above the horizon for the expanded camera. `0` = horizon level; positive lifts the camera up. |
@@ -306,7 +306,7 @@ When `width = 0`, no border is drawn on either slide plates or caption plates. W
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `src` | string | — | **Required.** Path to the PNG relative to the scene file, or a `data:` URI. Absolute paths are accepted too. |
-| `gap` | number ≥ 0 or null | `null` | Per-slide gap override (points). `null` uses `camera.gap`. Only affects spacing between this plate and the plate behind it. |
+| `gap` | number ≥ 0 or null | `null` | Per-slide gap override (points). `null` uses `camera.gap`. A value of 0 is resolved to MIN_GAP (3.0), matching the minimal spacing in the compact view. Only affects spacing between this plate and the plate behind it. |
 | `opacity` | number or object | `1.0` | Plate opacity. See below. |
 | `caption` | object or null | `null` | Optional text label. See below. |
 
