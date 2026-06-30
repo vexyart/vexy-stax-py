@@ -186,7 +186,7 @@ class FrameState:
     """One animation frame: camera pose + per-slide spacing and opacity."""
 
     camera: CameraPose
-    gaps: list[float]  # effective gap before each slide (slide 0's gap is unused)
+    gaps: list[float]  # effective gap in front of each slide (frontmost slide's gap is unused)
     opacities: list[float]  # per-slide plate opacity
     caption_opacities: list[float]  # per-slide caption opacity (staggered fade)
 
@@ -216,23 +216,25 @@ def stack_depth(scene: Scene, view: View) -> float:
         return 0.0
     if view == "compact":
         return (n - 1) * MIN_GAP
-    # gaps[0] is the gap before slide 0 (no predecessor), so sum gaps[1:].
-    return sum(plate_gaps(scene)[1:])
+    # A slide's gap is the gap IN FRONT of it (between slide i and i+1), so the
+    # frontmost slide's gap has no successor and is unused -> sum gaps[:-1].
+    return sum(plate_gaps(scene)[:-1])
 
 
 def _stack_positions(gaps: list[float]) -> list[float]:
     """Per-plate ``Z`` (front plate at 0, index 0 at ``-stack_depth``).
 
-    ``gaps[i]`` is the gap in front of plate ``i`` (``gaps[0]`` has no
-    predecessor and is unused). Matches the engines' plate placement.
+    ``gaps[i]`` is the gap IN FRONT of plate ``i`` (between slide ``i`` and slide
+    ``i+1``); the interval before plate ``i`` is therefore ``gaps[i-1]`` and the
+    frontmost ``gaps[n-1]`` is unused. Matches the engines' plate placement.
     """
     n = len(gaps)
     if n == 0:
         return []
-    depth = sum(gaps[1:])
+    depth = sum(gaps[:-1])
     cum = [0.0]
     for i in range(1, n):
-        cum.append(cum[-1] + gaps[i])
+        cum.append(cum[-1] + gaps[i - 1])
     return [c - depth for c in cum]
 
 

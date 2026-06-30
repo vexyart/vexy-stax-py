@@ -521,3 +521,26 @@ def test_plate_gaps_tristate_end_to_end() -> None:
     assert gaps[1] == pytest.approx(g.MIN_GAP)
     assert gaps[2] == pytest.approx(g.MIN_GAP)
     assert gaps[3] == pytest.approx(250.0)
+
+
+def test_gap_in_front_of_slide_direction() -> None:
+    """Issue 351: a slide's gap is the spacing IN FRONT of it (between slide i and
+    i+1); the frontmost slide's gap is unused. stack_depth sums gaps[:-1]."""
+    scene = Scene.model_validate(
+        {
+            "version": 1,
+            "camera": {"gap": 100},
+            "slides": [
+                {"src": "a.png", "gap": 10},  # interval a->b
+                {"src": "b.png", "gap": 20},  # interval b->c
+                {"src": "c.png", "gap": 30},  # frontmost: unused
+            ],
+        }
+    )
+    assert g.stack_depth(scene, "expanded") == pytest.approx(30.0)
+    # Frontmost slide's gap has no effect.
+    scene.slides[2].gap = 999.0
+    assert g.stack_depth(scene, "expanded") == pytest.approx(30.0)
+    # A non-frontmost slide's gap does change the depth.
+    scene.slides[0].gap = 50.0
+    assert g.stack_depth(scene, "expanded") == pytest.approx(70.0)
