@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 View = Literal["expanded", "compact"]
 TransitionKind = Literal["expand", "collapse", "expand_collapse", "collapse_expand"]
@@ -185,9 +185,24 @@ class Slide(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     src: str = Field(description="Path relative to the scene file, or a data: URI.")
-    gap: float | None = Field(default=None, ge=0, description="Per-slide gap override; null uses camera.gap.")
+    gap: float | None = Field(
+        default=None,
+        ge=0,
+        description="Per-slide gap override; omit to inherit camera.gap, null or 0 ⇒ minimal gap.",
+    )
     opacity: Opacity = 1.0
     caption: Caption | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _gap_null_is_minimal(cls, data: object) -> object:
+        """Tri-state gap: an omitted key inherits ``camera.gap`` (field stays None);
+        an explicit ``null`` or ``0`` collapses to the minimal gap (geometry resolves
+        0 ⇒ MIN_GAP). Distinguish an absent key from a present-null before validation.
+        """
+        if isinstance(data, dict) and "gap" in data and data["gap"] is None:
+            return {**data, "gap": 0.0}
+        return data
 
     def resolved_opacity(self, view: View) -> float:
         """Return the opacity for ``view`` (scalar opacity returns itself)."""

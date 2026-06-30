@@ -204,3 +204,23 @@ def test_caption_fade_stagger_frames() -> None:
     # default leaves it None (the `stagger` fraction is used)
     d = Scene.model_validate({"version": 1, "caption_fade": {}, "slides": [{"src": "a.png"}]})
     assert d.caption_fade is not None and d.caption_fade.stagger_frames is None
+
+
+def test_gap_tristate_parse() -> None:
+    """Issue 351: an omitted gap inherits camera.gap (None); an explicit null or 0
+    collapses to the minimal gap (stored as 0.0, geometry resolves to MIN_GAP)."""
+    scene = Scene.model_validate(
+        {
+            "version": 1,
+            "slides": [
+                {"src": "a.png"},  # omitted -> inherit
+                {"src": "b.png", "gap": None},  # null -> minimal
+                {"src": "c.png", "gap": 0},  # 0 -> minimal
+                {"src": "d.png", "gap": 100},  # positive -> that value
+            ],
+        }
+    )
+    assert scene.slides[0].gap is None
+    assert scene.slides[1].gap == 0.0
+    assert scene.slides[2].gap == 0.0
+    assert scene.slides[3].gap == 100.0

@@ -109,7 +109,7 @@
       "properties": {
         "src": { "type": "string", "description": "Path relative to the scene file, or a data: URI." },
         "gap": {
-          "description": "Per-slide gap override (points). null uses camera.gap. A value of 0 is resolved to MIN_GAP (3.0).",
+          "description": "Per-slide gap override (points). Omit the key to inherit camera.gap; null or 0 collapses to the minimal gap (MIN_GAP, 3.0).",
           "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
           "default": null
         },

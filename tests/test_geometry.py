@@ -499,3 +499,25 @@ def test_caption_opacities_stagger_frames() -> None:
     # fully in only at the expanded end; fully out at compact.
     assert all(op == pytest.approx(1.0) for op in g.caption_opacities(sc, 1.0))
     assert all(op == pytest.approx(0.0) for op in g.caption_opacities(sc, 0.0))
+
+
+def test_plate_gaps_tristate_end_to_end() -> None:
+    """Issue 351: parse -> plate_gaps. Omitted gap inherits camera.gap; explicit
+    null or 0 collapses to MIN_GAP; a positive value is preserved."""
+    scene = Scene.model_validate(
+        {
+            "version": 1,
+            "camera": {"gap": 800},
+            "slides": [
+                {"src": "a.png"},  # omitted -> camera.gap
+                {"src": "b.png", "gap": None},  # null -> MIN_GAP
+                {"src": "c.png", "gap": 0},  # 0 -> MIN_GAP
+                {"src": "d.png", "gap": 250},  # positive
+            ],
+        }
+    )
+    gaps = g.plate_gaps(scene)
+    assert gaps[0] == pytest.approx(800.0)
+    assert gaps[1] == pytest.approx(g.MIN_GAP)
+    assert gaps[2] == pytest.approx(g.MIN_GAP)
+    assert gaps[3] == pytest.approx(250.0)

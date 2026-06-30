@@ -192,10 +192,9 @@ class FrameState:
 
 
 def plate_gaps(scene: Scene) -> list[float]:
-    """Per-slide gap (points), falling back to ``camera.gap`` when unset.
-
-    If 0 is used, then the same minimal gap between the plates is used as in the
-    compact gap (MIN_GAP).
+    """Per-slide gap (points). A None field (set only when the scene omits the gap
+    key) inherits ``camera.gap``; a 0 field (set by an explicit ``null`` or ``0`` in
+    the scene) resolves to the minimal gap (MIN_GAP), as used in the compact view.
     """
     gaps = []
     for s in scene.slides:
