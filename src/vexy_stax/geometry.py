@@ -238,15 +238,15 @@ def _stack_positions(gaps: list[float]) -> list[float]:
     return [c - depth for c in cum]
 
 
-def _sub(a: tuple, b: tuple) -> tuple[float, float, float]:
+def _sub(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
     return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
 
 
-def _dot(a: tuple, b: tuple) -> float:
+def _dot(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 
-def _cross(a: tuple, b: tuple) -> tuple[float, float, float]:
+def _cross(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
     return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
 
 
@@ -505,7 +505,7 @@ def interpolate_opacity(slide, t_expanded: float) -> float:
     lo = slide.resolved_opacity("compact")
     hi = slide.resolved_opacity("expanded")
     value = lo + (hi - lo) * t
-    return max(0.0, min(1.0, value))
+    return float(max(0.0, min(1.0, value)))
 
 
 def caption_opacities(scene: Scene, t_expanded: float) -> list[float]:

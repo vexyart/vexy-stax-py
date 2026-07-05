@@ -71,6 +71,15 @@ python_version = "3.12"
 strict = false
 warn_return_any = true
 warn_unused_configs = true
+# _blender_render.py executes inside Blender's bundled Python and imports `bpy`,
+# which is not installable in the package's own environment — so it cannot be
+# type-checked here. It is exercised by the Blender integration tests instead.
+exclude = ['src/vexy_stax/engines/_blender_render\.py']
+
+[[tool.mypy.overrides]]
+# Runtime dependencies that ship no type stubs and no py.typed marker.
+module = ["fire", "pygfx", "pylinalg", "rendercanvas.*"]
+ignore_missing_imports = true
 
 [dependency-groups]
 dev = [

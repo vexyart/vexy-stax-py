@@ -110,7 +110,7 @@ def _gaussian_blur_rgba(arr: np.ndarray, radius: float) -> np.ndarray:
     scale = min(1.0, max_side / float(max(h, w)))
     if scale < 1.0:
         sw, sh = max(1, round(w * scale)), max(1, round(h * scale))
-        arr = np.ascontiguousarray(np.asarray(Image.fromarray(arr, "RGBA").resize((sw, sh), Image.LANCZOS)))
+        arr = np.ascontiguousarray(np.asarray(Image.fromarray(arr, "RGBA").resize((sw, sh), Image.Resampling.LANCZOS)))
         radius = radius * scale
     r = max(1, int(round(radius)))
     f = arr.astype(np.float32) / 255.0
@@ -164,8 +164,9 @@ def _register_font(path: str) -> str | None:
         ff = gfx.font_manager.add_font_file(path)
     except Exception:  # noqa: BLE001 — bad/missing font file → fall back to the default
         return None
-    _registered_font_families[path] = ff.family
-    return ff.family
+    family = str(ff.family)
+    _registered_font_families[path] = family
+    return family
 
 
 def _caption_font_family(font_value: str | None) -> str | None:
@@ -522,7 +523,7 @@ def _render_frame(deck: _Deck, width: int, height: int, supersample: int) -> Ima
     raw = np.asarray(canvas.draw())
     im = Image.fromarray(raw, mode="RGBA")
     if supersample != 1:
-        im = im.resize((width, height), Image.LANCZOS)
+        im = im.resize((width, height), Image.Resampling.LANCZOS)
     return im
 
 

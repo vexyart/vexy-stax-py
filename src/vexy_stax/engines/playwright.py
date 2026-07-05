@@ -334,7 +334,7 @@ class _Browser:
         im = Image.open(BytesIO(raw)).convert("RGBA")
         target = size if size is not None else (self._scene.size.width, self._scene.size.height)
         if im.size != target:
-            im = im.resize(target, Image.LANCZOS)
+            im = im.resize(target, Image.Resampling.LANCZOS)
         return im
 
     def close(self) -> None:

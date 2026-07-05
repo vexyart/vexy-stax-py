@@ -4,9 +4,33 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — fixture metadata sync
+## [Unreleased] — modernization pass
+
+### Changed
+
+- **Pillow resampling constants use the modern `Image.Resampling.*` API** in the
+  blender, pygfx, and playwright engines (`Image.LANCZOS` → `Image.Resampling.LANCZOS`,
+  `Image.BILINEAR` → `Image.Resampling.BILINEAR`). Same behaviour; drops the deprecated
+  top-level aliases before a future Pillow removes them.
+- **`geometry.py` vector helpers are fully typed** (`_sub`/`_dot`/`_cross` now take
+  `tuple[float, float, float]`), so the parity-critical geometry module type-checks clean.
 
 ### Fixed
+
+- **mypy runs clean** (`uv run mypy src`, 14 modules): added `[[tool.mypy.overrides]]`
+  with `ignore_missing_imports` for the stub-less runtime deps (`fire`, `pygfx`,
+  `pylinalg`, `rendercanvas`), excluded `engines/_blender_render.py` (imports `bpy`,
+  only runnable inside Blender), and coerced two `Any`-typed returns.
+- **`.omc/` agent-orchestration state is now git-ignored** and untracked; those
+  operational JSON checkpoints no longer ship in the package tree.
+
+### Docs
+
+- README now leads with `pip install vexy-stax` (the published PyPI name) and keeps
+  the `uv sync` dev-checkout path as the secondary option.
+- Added `docs/assets/icon.png` — a monochrome pen-line project icon.
+
+### Fixed (fixture metadata sync)
 
 - Synced the `airbl-lores` tests and examples with the current committed fixture PNGs:
   the directory now contains 9 layers (`010-back` through `090-ui`) at `1247x806`.

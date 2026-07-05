@@ -214,3 +214,6 @@ outputs/
 
 # OS files
 .DS_Store
+
+# OMC agent-orchestration operational state (never committed)
+.omc/

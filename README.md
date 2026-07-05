@@ -12,6 +12,12 @@ This package implements the scene model, geometry math, CLI, and three fully fun
 ## Install
 
 ```bash
+pip install vexy-stax          # published on PyPI as `vexy-stax`
+```
+
+Or, for a checkout you want to hack on:
+
+```bash
 uv venv --python 3.12 && uv sync
 ```
 

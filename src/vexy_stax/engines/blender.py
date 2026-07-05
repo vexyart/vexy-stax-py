@@ -88,12 +88,12 @@ def _blurred_reflection_path(src_path: str, image_height_px: int) -> str:
     # is visually identical under the glass and ~16× cheaper. The "v2" tag busts the old cache.
     out = _BLUR_DIR / f"refl_v2_{abs(hash((src_path, image_height_px))):016x}.png"
     if not out.exists():
-        with Image.open(src_path) as im:
-            im = im.convert("RGBA")
+        with Image.open(src_path) as src:
+            im = src.convert("RGBA")
             cap = 1024
             if im.height > cap:
                 s = cap / float(im.height)
-                im = im.resize((max(1, round(im.width * s)), cap), Image.BILINEAR)
+                im = im.resize((max(1, round(im.width * s)), cap), Image.Resampling.BILINEAR)
                 radius *= s
             blurred = im.filter(ImageFilter.GaussianBlur(radius=max(0.5, radius)))
         blurred.save(out, "PNG")
