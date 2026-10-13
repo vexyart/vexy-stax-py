@@ -2,6 +2,8 @@
 
 # vexy-stax
 
+**Documentation:** https://vexy.dev/vexy-stax-py/
+
 Render a deck of layered PNG slides as 3D glass plates — in two views and the
 transitions between them — from a single shared JSON scene format. This is the
 offline Python package; a browser sibling (`vexy-stax-js`) consumes the same

@@ -217,3 +217,7 @@ outputs/
 
 # OMC agent-orchestration operational state (never committed)
 .omc/
+
+# Added for docs/packaging hygiene
+node_modules/
+site/

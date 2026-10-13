@@ -9,6 +9,21 @@ description = "Render layered PNGs as 3D glass plates in two views, from a share
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
+authors = [{ name = "Adam Twardoch", email = "adam+github@twardoch.com" }]
+keywords = ["3d", "rendering", "slides", "layers", "blender", "pygfx", "playwright", "animation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+    "Topic :: Multimedia :: Video",
+]
 dependencies = [
     "fire",
     "rich",
@@ -22,8 +37,11 @@ dependencies = [
 ]
 
 [project.urls]
+Documentation = "https://vexy.dev/vexy-stax-py/"
 Homepage = "https://github.com/vexyart/vexy-stax-py"
 Repository = "https://github.com/vexyart/vexy-stax-py"
+Issues = "https://github.com/vexyart/vexy-stax-py/issues"
+Changelog = "https://github.com/vexyart/vexy-stax-py/blob/main/CHANGELOG.md"
 
 [project.scripts]
 vexy-stax = "vexy_stax.cli:main"
@@ -38,6 +56,21 @@ version-file = "src/vexy_stax/_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vexy_stax"]
 artifacts = ["src/vexy_stax/fonts/*.ttf", "src/vexy_stax/fonts/*.txt"]
+
+[tool.hatch.build.targets.sdist]
+# Ship the package, tests and the small sample deck the tests need; leave out the
+# generated site, doc sources, CI config, gate snapshots and the large sample decks.
+include = [
+    "src/vexy_stax",
+    "tests",
+    "testdata/airbl-lores",
+    "testdata/*.json",
+    "schema",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SPEC.md",
+]
 
 [tool.hatch.envs.default]
 dependencies = [

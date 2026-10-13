@@ -1,32 +1,29 @@
 #!/usr/bin/env bash
 # this_file: build.sh
-# Build vexy-stax: lint → test → build wheel+sdist. Fails on any error.
+# Build the documentation (docs/) and the Python package (dist/).
+# Usage: ./build.sh [all|test|docs|package]   (default: all)
+#   test    — ruff check --fix + ruff format + pytest (default selection excludes 'slow')
+#   docs    — src_docs/build.sh (strict ProperDocs build into docs/)
+#   package — clean dist/, uv build (wheel + sdist), twine check
+#   all     — test, docs, package
 set -euo pipefail
-cd "$(dirname "$0")"
-
-# Color output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-echo -e "${BLUE}Building vexy-stax...${NC}"
-
-# Step 1: lint + format.
-echo -e "${YELLOW}→ Linting (ruff check --fix)...${NC}"
-uvx ruff check --fix src tests
-echo -e "${YELLOW}→ Formatting (ruff format)...${NC}"
-uvx ruff format src tests
-
-# Step 2: tests (default selection excludes 'slow' video renders).
-echo -e "${YELLOW}→ Running tests...${NC}"
-uv run pytest -q
-
-# Step 3: build wheel + sdist into dist/. Clean first so publish never sees a
-# stale build (e.g. a prior dev-version wheel PyPI would reject as a local version).
-echo -e "${YELLOW}→ Building wheel + sdist (uv build)...${NC}"
-rm -rf dist
-uv build
-
-echo -e "${GREEN}✅ Build completed successfully${NC}"
-ls -la dist/
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+target="${1:-all}"
+case "$target" in
+  all|test|docs|package) ;;
+  *) echo "usage: $0 [all|test|docs|package]" >&2; exit 2 ;;
+esac
+if [[ "$target" == all || "$target" == test ]]; then
+  uvx ruff check --fix src tests
+  uvx ruff format src tests
+  uv run pytest -q
+fi
+if [[ "$target" == all || "$target" == docs ]]; then
+  src_docs/build.sh
+fi
+if [[ "$target" == all || "$target" == package ]]; then
+  # Clean first so publish never sees a stale build (e.g. a dev-version wheel).
+  rm -rf dist
+  uv build
+  uvx twine check dist/*
+fi
