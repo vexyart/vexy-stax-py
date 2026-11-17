@@ -1,3 +1,8 @@
+---
+this_file: src_docs/md/troubleshooting.md
+tags: [Troubleshooting]
+---
+
 # Troubleshooting
 
 ## Expanded view looks collapsed

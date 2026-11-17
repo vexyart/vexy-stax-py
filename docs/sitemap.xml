@@ -2,72 +2,77 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>https://vexy.dev/vexy-stax-py/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/architecture/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/browser/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/captions/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/cli/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/concepts/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/engines/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/geometry/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/installation/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/python-api/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/quickstart/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/scene-format/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/scene-reference/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://vexy.dev/vexy-stax-py/topics/</loc>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://vexy.dev/vexy-stax-py/troubleshooting/</loc>
-        <lastmod>2026-10-13</lastmod>
+        <lastmod>2026-11-17</lastmod>
         <changefreq>daily</changefreq>
     </url>
 </urlset>

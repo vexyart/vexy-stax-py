@@ -1,3 +1,8 @@
+---
+this_file: src_docs/md/cli.md
+tags: [Command line]
+---
+
 # CLI
 
 The `vexy-stax` command is built with [Fire](https://github.com/google/python-fire) and Rich. Every subcommand is a method of the `Stax` class in `src/vexy_stax/cli.py`. `python -m vexy_stax` runs the same CLI.

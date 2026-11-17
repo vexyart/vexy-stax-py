@@ -1,0 +1,21 @@
+# this_file: src_docs/md/.nav.yml
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: installation.md
+      - Quick start: quickstart.md
+      - Concepts: concepts.md
+  - Scene format:
+      - Overview: scene-format.md
+      - Reference: scene-reference.md
+      - Captions: captions.md
+  - Rendering:
+      - CLI: cli.md
+      - Engines: engines.md
+      - Geometry: geometry.md
+      - Python API: python-api.md
+      - vexy-stax-js: browser.md
+  - Project:
+      - Architecture and contributing: architecture.md
+      - Troubleshooting: troubleshooting.md
+  - Topics: topics.md

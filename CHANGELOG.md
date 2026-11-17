@@ -495,3 +495,9 @@ All notable changes to this project are documented here.
   - `images.py`, `juicy.py` — overlay compositing and color-correction modules.
   - `cli.py` — fire + rich CLI: `render`, `video`, `overlay`, `engines`.
   - `tests/` — scene and geometry unit tests with shared fixture vectors.
+
+## 2026-10-18: documentation plugins
+
+- Use MaterialX search, inherited metadata and a topic index; keep ordered navigation in awesome-nav.
+- The documentation wrapper installs the plugins required by this site.
+- Strict documentation build and rendered output checks passed.

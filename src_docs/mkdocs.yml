@@ -45,23 +45,7 @@ markdown_extensions:
   - pymdownx.tabbed: {alternate_style: true}
   - pymdownx.tasklist: {custom_checkbox: true}
 plugins:
-  - search
-nav:
-  - Home: index.md
-  - Getting started:
-      - Installation: installation.md
-      - Quick start: quickstart.md
-      - Concepts: concepts.md
-  - Scene format:
-      - Overview: scene-format.md
-      - Reference: scene-reference.md
-      - Captions: captions.md
-  - Rendering:
-      - CLI: cli.md
-      - Engines: engines.md
-      - Geometry: geometry.md
-      - Python API: python-api.md
-      - vexy-stax-js: browser.md
-  - Project:
-      - Architecture and contributing: architecture.md
-      - Troubleshooting: troubleshooting.md
+  - materialx/meta
+  - materialx/tags
+  - awesome-nav
+  - materialx/search
